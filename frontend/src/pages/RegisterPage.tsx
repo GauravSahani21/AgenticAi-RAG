@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { UserRole } from '../types';
 import { Button } from '../components/Button';
+import { Logo } from '../components/Logo';
 import {
   GraduationCap,
   AlertCircle,
@@ -60,18 +61,8 @@ export const RegisterPage: React.FC = () => {
     <div className="min-h-screen bg-zinc-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Brand Header */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-white">
-            <GraduationCap className="w-5 h-5" />
-          </div>
-          <div className="text-left">
-            <h1 className="text-lg font-bold tracking-tight text-zinc-900 leading-none">
-              AdaptiveLearn AI
-            </h1>
-            <p className="text-xs text-zinc-500 mt-1">
-              Academic Agentic Platform
-            </p>
-          </div>
+        <div className="flex justify-center mb-6">
+          <Logo size="lg" />
         </div>
       </div>
 

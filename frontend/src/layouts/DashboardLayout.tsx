@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
+import { Logo } from '../components/Logo';
 import { 
   GraduationCap, 
   LogOut, 
@@ -56,18 +57,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-6">
-              <Link to="/" className="flex items-center gap-3 group">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-                  <GraduationCap className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
-                    AdaptiveLearn <span className="text-blue-600 font-extrabold">AI</span>
-                  </span>
-                  <span className="block text-[10px] font-medium tracking-wider uppercase text-slate-400">
-                    Agentic Academic Platform
-                  </span>
-                </div>
+              <Link to="/" className="group flex items-center">
+                <Logo size="md" />
               </Link>
 
               <nav className="hidden md:flex items-center gap-1">
