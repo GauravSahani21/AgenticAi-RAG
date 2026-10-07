@@ -177,50 +177,55 @@ export const StudentDashboard: React.FC = () => {
       {/* Tab Content */}
       {activeTab === 'curriculum' ? (
         /* Course & Topics Explorer */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 space-y-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-600" /> Academic Courses
-            </h2>
-            <div className="space-y-2">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Compact Course Sidebar */}
+          <div className="w-full lg:w-64 shrink-0 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-zinc-600" /> Academic Courses
+              </h2>
+              <span className="text-[11px] font-medium text-zinc-400">{subjects.length} total</span>
+            </div>
+            <div className="space-y-1.5">
               {subjects.map((sub) => (
                 <div
                   key={sub.id}
                   onClick={() => setSelectedSubject(sub)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedSubject?.id === sub.id
-                      ? 'border-zinc-900 bg-zinc-50'
-                      : 'border-zinc-200 bg-white hover:border-zinc-300'
+                      ? 'border-zinc-900 bg-zinc-100/70 shadow-sm'
+                      : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700">
+                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white border border-zinc-200 text-zinc-800">
                       {sub.code}
                     </span>
-                    <span className="text-[11px] text-zinc-400">{sub.topics?.length || 0} topics</span>
+                    <span className="text-[11px] text-zinc-500">{sub.topics?.length || 0} topics</span>
                   </div>
-                  <h3 className="mt-1.5 font-semibold text-zinc-900 text-xs">{sub.name}</h3>
+                  <h3 className="mt-1.5 font-medium text-zinc-900 text-xs truncate">{sub.name}</h3>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
+          {/* Curriculum Topics Area */}
+          <div className="flex-1 min-w-0 w-full space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
               <div>
-                <h2 className="text-base font-bold text-slate-900">
+                <h2 className="text-base font-semibold text-zinc-900">
                   {selectedSubject?.name || 'Course Topics'} Curriculum
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-zinc-500 mt-0.5">
                   Institutional topic sequence grounded in academic course syllabus
                 </p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+              <span className="text-xs font-medium px-2.5 py-1 rounded border border-zinc-200 bg-zinc-50 text-zinc-700">
                 {selectedSubject?.topics?.length || 0} Topics Registered
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {selectedSubject?.topics && selectedSubject.topics.length > 0 ? (
                 selectedSubject.topics.map((t, idx) => {
                   const state = learningStates[t.id];
