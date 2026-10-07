@@ -2,9 +2,18 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { UserRole } from '../types';
-import { Input } from '../components/Input';
 import { Button } from '../components/Button';
-import { GraduationCap, AlertCircle } from 'lucide-react';
+import {
+  GraduationCap,
+  AlertCircle,
+  User,
+  Mail,
+  Lock,
+  Building,
+  ArrowRight,
+  Shield,
+  BookOpen
+} from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const { register, getDashboardRoute } = useAuth();
@@ -48,90 +57,172 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen bg-zinc-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white shadow-xl shadow-blue-500/30">
-            <GraduationCap className="w-8 h-8" />
+        {/* Brand Header */}
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-white">
+            <GraduationCap className="w-5 h-5" />
+          </div>
+          <div className="text-left">
+            <h1 className="text-lg font-bold tracking-tight text-zinc-900 leading-none">
+              AdaptiveLearn AI
+            </h1>
+            <p className="text-xs text-zinc-500 mt-1">
+              Academic Agentic Platform
+            </p>
           </div>
         </div>
-        <h2 className="mt-4 text-center text-3xl font-extrabold text-white tracking-tight">
-          Create an Account
-        </h2>
-        <p className="mt-1 text-center text-sm text-slate-300">
-          Join AdaptiveLearn AI as a Student, Faculty Member, or Admin
-        </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <div className="bg-white py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-slate-100">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+          {/* Card Title */}
+          <div className="mb-6">
+            <h2 className="text-base font-semibold text-zinc-900">Create your account</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Register as a student, faculty member, or institutional administrator
+            </p>
+          </div>
+
+          {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start gap-2.5">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
               <span>{error}</span>
             </div>
           )}
 
+          {/* Form */}
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              label="Full Name"
-              placeholder="e.g. John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              label="Institutional Email"
-              placeholder="e.g. john@university.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              label="Password"
-              placeholder="Minimum 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-slate-700 mb-1">
-                Institutional Role
+              <label htmlFor="name" className="block text-xs font-medium text-zinc-700 mb-1.5">
+                Full Name
               </label>
-              <select
-                id="role"
-                name="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              >
-                <option value="STUDENT">Student (Adaptive Learning)</option>
-                <option value="FACULTY">Faculty (Curriculum & Intervention)</option>
-                <option value="ADMIN">Administrator (Institutional Governance)</option>
-              </select>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                  <User className="w-4 h-4" />
+                </div>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  placeholder="e.g. Alan Turing"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="block w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 transition-colors"
+                />
+              </div>
             </div>
 
-            <Input
-              id="department"
-              name="department"
-              type="text"
-              label="Academic Department (Optional)"
-              placeholder="e.g. Computer Science, Mathematics"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-            />
+            <div>
+              <label htmlFor="email" className="block text-xs font-medium text-zinc-700 mb-1.5">
+                Institutional Email
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  placeholder="name@university.edu"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="block w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-medium text-zinc-700 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  placeholder="Minimum 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="role" className="block text-xs font-medium text-zinc-700 mb-1.5">
+                Institutional Role
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRole('STUDENT')}
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all ${
+                    role === 'STUDENT'
+                      ? 'border-zinc-900 bg-zinc-900 text-white'
+                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>Student</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('FACULTY')}
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all ${
+                    role === 'FACULTY'
+                      ? 'border-zinc-900 bg-zinc-900 text-white'
+                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Faculty</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('ADMIN')}
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all ${
+                    role === 'ADMIN'
+                      ? 'border-zinc-900 bg-zinc-900 text-white'
+                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Admin</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="department" className="block text-xs font-medium text-zinc-700 mb-1.5">
+                Academic Department <span className="text-zinc-400 font-normal">(Optional)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                  <Building className="w-4 h-4" />
+                </div>
+                <input
+                  id="department"
+                  name="department"
+                  type="text"
+                  placeholder="e.g. Computer Science"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="block w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 transition-colors"
+                />
+              </div>
+            </div>
 
             <Button
               type="submit"
@@ -140,13 +231,15 @@ export const RegisterPage: React.FC = () => {
               className="w-full mt-2"
               isLoading={loading}
             >
-              Complete Registration
+              <span>Create Account</span>
+              <ArrowRight className="w-4 h-4" />
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-slate-600">
+          {/* Login Link */}
+          <div className="mt-6 pt-4 border-t border-zinc-100 text-center text-xs text-zinc-500">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500">
+            <Link to="/login" className="font-medium text-zinc-900 hover:underline">
               Sign in
             </Link>
           </div>

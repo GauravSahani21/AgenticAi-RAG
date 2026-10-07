@@ -165,8 +165,9 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                   {question.question_text}
                 </p>
                 {question.hint && (
-                  <p className="text-[11px] text-slate-500 italic">
-                    💡 {question.hint}
+                  <p className="text-[11px] text-slate-500 italic flex items-center gap-1.5">
+                    <HelpCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>{question.hint}</span>
                   </p>
                 )}
               </div>
