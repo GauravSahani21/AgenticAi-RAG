@@ -1,0 +1,1 @@
+Embeddings are dense numerical vector representations of semantic meaning. They capture contextual similarities between words, tokens, or documents in high-dimensional vector spaces. Cosine similarity is used to measure the angle between vectors.

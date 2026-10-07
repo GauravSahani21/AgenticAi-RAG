@@ -1,0 +1,1 @@
+Embeddings are vector representations of semantic meaning in AI.

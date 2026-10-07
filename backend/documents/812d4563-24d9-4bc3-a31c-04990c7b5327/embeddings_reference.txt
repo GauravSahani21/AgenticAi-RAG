@@ -1,0 +1,1 @@
+Word embeddings map vocabulary words to dense vectors of real numbers. Cosine similarity measures the angle between vectors, reflecting conceptual closeness. High-dimensional representations allow machines to calculate semantic distance.

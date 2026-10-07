@@ -1,0 +1,1 @@
+Hierarchical Navigable Small World (HNSW) graphs are multi-layer graph structures designed for efficient approximate nearest neighbor search over dense vectors.

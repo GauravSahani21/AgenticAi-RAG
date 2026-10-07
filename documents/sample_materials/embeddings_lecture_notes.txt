@@ -1,0 +1,15 @@
+Module 2: Embeddings & Vector Representations
+
+Definition of Embeddings:
+In modern artificial intelligence and natural language processing, embeddings are dense continuous vector representations of discrete tokens, phrases, or full documents. Unlike traditional sparse representations such as one-hot encoding or TF-IDF, dense embeddings project semantic concepts into a shared multidimensional vector space (typically between 384 and 1536 dimensions).
+
+Geometric Proximity and Semantic Similarity:
+In this latent geometric space, semantically related concepts are situated close to one another according to distance metrics such as Cosine Similarity, Euclidean Distance (L2 norm), or Dot Product. For example, the vector difference between 'King' and 'Man' approximates the difference between 'Queen' and 'Woman'.
+
+Cosine Similarity Formulation:
+Cosine similarity measures the cosine of the angle between two non-zero vectors in an inner product space. It evaluates directional orientation rather than vector magnitude, calculated as:
+cosine_similarity(A, B) = (A dot B) / (||A|| * ||B||).
+Values range from -1.0 to +1.0, where +1.0 indicates identical directional alignment.
+
+Vector Databases and Approximate Nearest Neighbor (ANN):
+Vector databases (e.g. ChromaDB, Milvus, Pinecone, FAISS) index dense vectors using graph-based algorithms such as Hierarchical Navigable Small World (HNSW) or inverted file indexes (IVFFlat) to achieve sub-millisecond retrieval across millions of chunk embeddings during RAG pipelines.
