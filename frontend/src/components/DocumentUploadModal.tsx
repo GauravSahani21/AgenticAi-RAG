@@ -7,8 +7,7 @@ import {
   X, 
   FileText, 
   AlertCircle, 
-  CheckCircle2, 
-  Sparkles
+  CheckCircle2
 } from 'lucide-react';
 
 interface DocumentUploadModalProps {
@@ -194,10 +193,10 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-indigo-50/80 border border-indigo-100 flex items-center gap-2 text-[11px] text-indigo-900">
-            <Sparkles className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+          <div className="p-3 rounded-lg bg-zinc-50 border border-zinc-200 flex items-center gap-2.5 text-xs text-zinc-600">
+            <CheckCircle2 className="w-4 h-4 text-zinc-500 shrink-0" />
             <span>
-              Pipeline will extract text, chunk content, generate dense vector embeddings, and index into ChromaDB.
+              Document will be chunked, indexed with local dense embeddings, and stored in ChromaDB.
             </span>
           </div>
 

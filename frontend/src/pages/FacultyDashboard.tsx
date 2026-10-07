@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import { dashboardService, curriculumService, documentService } from '../services/api';
 import type { FacultyOverview, Subject, DocumentItem } from '../types';
 import { Card } from '../components/Card';
@@ -24,7 +23,6 @@ import {
 
 
 export const FacultyDashboard: React.FC = () => {
-  const { user } = useAuth();
   const [overview, setOverview] = useState<FacultyOverview | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -120,56 +118,56 @@ export const FacultyDashboard: React.FC = () => {
   const totalChunks = documents.reduce((acc, d) => acc + (d.chunk_count || 0), 0);
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-blue-900 text-white rounded-2xl p-6 md:p-8 shadow-lg">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 text-xs font-medium mb-3">
-          <BookOpen className="w-3.5 h-3.5 text-indigo-300" /> Faculty Operations Portal
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Faculty Portal: {user?.name}
+    <div className="space-y-6">
+      {/* Professional Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900">
+              Faculty Management Console
             </h1>
-            <p className="mt-2 text-sm text-slate-300 max-w-2xl">
-              Monitor student mastery, review data-grounded intervention alerts, and manage verified curriculum materials.
-            </p>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
+              Instructor Portal
+            </span>
           </div>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 self-start sm:self-auto"
-          >
-            <Upload className="w-4 h-4" />
-            Upload Course Material
-          </Button>
+          <p className="mt-1 text-xs text-zinc-500">
+            Course curriculum, document indexing, student mastery analytics, and early interventions
+          </p>
         </div>
+        <Button
+          variant="primary"
+          size="md"
+          onClick={() => setShowUploadModal(true)}
+          className="flex items-center gap-2 self-start sm:self-auto"
+        >
+          <Upload className="w-4 h-4" />
+          <span>Upload Course Material</span>
+        </Button>
       </div>
 
       {/* Main Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
+      <div className="flex items-center gap-2 border-b border-zinc-200">
         <button
           onClick={() => setMainTab('analytics')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             mainTab === 'analytics'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-zinc-900 text-zinc-900'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
           }`}
         >
-          <BarChart2 className="w-4 h-4" />
-          Analytics & Intervention Center
+          <BarChart2 className="w-3.5 h-3.5" />
+          Analytics & Interventions
         </button>
         <button
           onClick={() => setMainTab('materials')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             mainTab === 'materials'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-zinc-900 text-zinc-900'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
           }`}
         >
-          <BookOpen className="w-4 h-4" />
-          Curriculum & Knowledge Base (RAG)
+          <BookOpen className="w-3.5 h-3.5" />
+          Curriculum & Knowledge Base
         </button>
       </div>
 

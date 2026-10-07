@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import { dashboardService } from '../services/api';
 import type { AdminOverview, User } from '../types';
 import { Card } from '../components/Card';
@@ -14,7 +13,6 @@ import {
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const { user } = useAuth();
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
@@ -53,18 +51,22 @@ export const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 md:p-8 shadow-lg">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30 text-xs font-medium mb-3">
-          <ShieldCheck className="w-3.5 h-3.5 text-purple-300" /> Institutional Administration
+    <div className="space-y-6">
+      {/* Professional Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900">
+              System Administration
+            </h1>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
+              Institutional Governance
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-zinc-500">
+            System health, active accounts audit registry, and role-based access management
+          </p>
         </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-          Admin Governance: {user?.name}
-        </h1>
-        <p className="mt-2 text-sm text-slate-300 max-w-2xl">
-          System overview, role management, user audit registry, and security enforcement.
-        </p>
       </div>
 
       {/* Metrics Row */}

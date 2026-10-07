@@ -9,9 +9,7 @@ import { AssessmentModal } from '../components/AssessmentModal';
 import { 
   BookOpen, 
   Flame, 
-  Sparkles, 
   Layers, 
-  BrainCircuit, 
   Award, 
   MessageSquare, 
   ArrowRight
@@ -93,94 +91,86 @@ export const StudentDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 md:p-8 shadow-lg relative overflow-hidden">
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/30 text-xs font-medium mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-blue-300" /> Adaptive Learning Portal Active
+    <div className="space-y-6">
+      {/* Professional Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900">
+              Student Workspace
+            </h1>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
+              Active Cohort
+            </span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            Welcome back, {user?.name}!
-          </h1>
-          <p className="mt-2 text-sm text-slate-300 leading-relaxed">
-            {overview?.message || 'Explore your registered course materials, learn with AI assistance, and track mastery progression.'}
+          <p className="mt-1 text-xs text-zinc-500">
+            {overview?.message || `Enrolled as ${user?.name} (${user?.department || 'Computer Science'})`}
           </p>
-        </div>
-        <div className="absolute right-6 -bottom-6 opacity-10 pointer-events-none hidden md:block">
-          <BrainCircuit className="w-64 h-64 text-white" />
         </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="flex items-center gap-4 border-l-4 border-l-blue-500">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-            <BookOpen className="w-6 h-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="p-4 border border-zinc-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500">Enrolled Courses</span>
+            <BookOpen className="w-4 h-4 text-zinc-400" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase">Available Courses</p>
-            <p className="text-2xl font-bold text-slate-800">{overview?.available_subjects || subjects.length}</p>
-          </div>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.available_subjects || subjects.length}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Faculty-approved syllabi</p>
         </Card>
 
-        <Card className="flex items-center gap-4 border-l-4 border-l-indigo-500">
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-            <Layers className="w-6 h-6" />
+        <Card className="p-4 border border-zinc-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500">Curriculum Topics</span>
+            <Layers className="w-4 h-4 text-zinc-400" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase">Curriculum Topics</p>
-            <p className="text-2xl font-bold text-slate-800">{overview?.available_topics || 0}</p>
-          </div>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.available_topics || 0}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Sequential learning modules</p>
         </Card>
 
-        <Card className="flex items-center gap-4 border-l-4 border-l-amber-500">
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-            <Flame className="w-6 h-6" />
+        <Card className="p-4 border border-zinc-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500">Study Streak</span>
+            <Flame className="w-4 h-4 text-amber-500" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase">Study Streak</p>
-            <p className="text-2xl font-bold text-slate-800">{overview?.active_learning_streak || 1} Days</p>
-          </div>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.active_learning_streak || 1} Days</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Consecutive active sessions</p>
         </Card>
 
-        <Card className="flex items-center gap-4 border-l-4 border-l-emerald-500">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <Award className="w-6 h-6" />
+        <Card className="p-4 border border-zinc-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500">Target Mastery</span>
+            <Award className="w-4 h-4 text-zinc-400" />
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase">Target Mastery</p>
-            <p className="text-2xl font-bold text-slate-800">80%</p>
-          </div>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">80%</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Class benchmark threshold</p>
         </Card>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
+      <div className="flex items-center gap-2 border-b border-zinc-200">
         <button
           onClick={() => setActiveTab('curriculum')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             activeTab === 'curriculum'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-zinc-900 text-zinc-900'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
           }`}
         >
-          <BookOpen className="w-4 h-4" />
+          <BookOpen className="w-3.5 h-3.5" />
           Course Curriculum
         </button>
         <button
           onClick={() => setActiveTab('tutor')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             activeTab === 'tutor'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-zinc-900 text-zinc-900'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
           }`}
         >
-          <MessageSquare className="w-4 h-4" />
-          Interactive AI Tutor
-          <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase">
-            RAG Grounded
-          </span>
+          <MessageSquare className="w-3.5 h-3.5" />
+          Interactive Tutor
         </button>
       </div>
 
@@ -197,31 +187,21 @@ export const StudentDashboard: React.FC = () => {
                 <div
                   key={sub.id}
                   onClick={() => setSelectedSubject(sub)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                     selectedSubject?.id === sub.id
-                      ? 'border-blue-600 bg-blue-50/50 shadow-sm'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                      ? 'border-zinc-900 bg-zinc-50'
+                      : 'border-zinc-200 bg-white hover:border-zinc-300'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                    <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700">
                       {sub.code}
                     </span>
-                    <span className="text-xs text-slate-500">{sub.topics?.length || 0} topics</span>
+                    <span className="text-[11px] text-zinc-400">{sub.topics?.length || 0} topics</span>
                   </div>
-                  <h3 className="mt-2 font-bold text-slate-800 text-sm">{sub.name}</h3>
+                  <h3 className="mt-1.5 font-semibold text-zinc-900 text-xs">{sub.name}</h3>
                 </div>
               ))}
-            </div>
-
-            <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-900 space-y-2">
-              <div className="font-bold flex items-center gap-1.5 text-indigo-950">
-                <BrainCircuit className="w-4 h-4 text-indigo-600" />
-                Adaptive Learning Architecture
-              </div>
-              <p className="text-indigo-700 leading-relaxed">
-                Click any topic card to immediately engage the <strong>RAG-grounded AI Tutor</strong>, citing lecture slides, textbooks, and faculty notes.
-              </p>
             </div>
           </div>
 
