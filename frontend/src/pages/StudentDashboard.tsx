@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { dashboardService, curriculumService, assessmentService } from '../services/api';
 import type { StudentOverview, Subject, Topic, LearningState } from '../types';
+import { LearningSculpture } from '../components/LearningSculpture';
+import { filterTopics, recommendTopic, type TopicFilter } from '../utils/studyPlan';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { TutorChat } from '../components/TutorChat';
 import { AssessmentModal } from '../components/AssessmentModal';
 import { 
   BookOpen, 
-  Flame, 
+  Target,
   Layers, 
   Award, 
   MessageSquare, 
@@ -26,6 +28,18 @@ export const StudentDashboard: React.FC = () => {
   const [activeTopicForTutor, setActiveTopicForTutor] = useState<string | undefined>(undefined);
   const [assessmentTopic, setAssessmentTopic] = useState<Topic | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [statesError, setStatesError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<TopicFilter>('all');
+  const topics = selectedSubject?.topics ?? [];
+  const visibleTopics = filterTopics(topics, learningStates, query, statesError ? 'all' : filter);
+  const recommendation = statesError ? null : recommendTopic(topics, learningStates);
+  const recordedStates = subjects.flatMap(subject => subject.topics ?? [])
+    .map(topic => learningStates[topic.id]).filter((state): state is LearningState => !!state && state.attempts > 0);
+  const averageMastery = recordedStates.length
+    ? recordedStates.reduce((sum, state) => sum + state.mastery_score, 0) / recordedStates.length : null;
 
   const fetchStates = async () => {
     try {
@@ -35,13 +49,17 @@ export const StudentDashboard: React.FC = () => {
         map[s.topic_id] = s;
       });
       setLearningStates(map);
+      setStatesError(false);
     } catch (err) {
+      setStatesError(true);
       console.error('Failed to load learning states:', err);
     }
   };
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      setError(false);
       try {
         const [ovData, subData] = await Promise.all([
           dashboardService.getStudentOverview(),
@@ -54,6 +72,7 @@ export const StudentDashboard: React.FC = () => {
         }
         await fetchStates();
       } catch (err) {
+        setError(true);
         console.error('Failed to load student dashboard:', err);
       } finally {
         setLoading(false);
@@ -61,7 +80,7 @@ export const StudentDashboard: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [retry]);
 
 
   const handleStartTutorOnTopic = (topic: Topic) => {
@@ -84,74 +103,83 @@ export const StudentDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div role="status" aria-label="Loading your learning workspace" className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
+  if (error) return <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-rose-800">
+    Your workspace could not be loaded. <button className="font-semibold underline" onClick={() => setRetry(value => value + 1)}>Try again</button>
+  </div>;
+
   return (
     <div className="space-y-6">
-      {/* Professional Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-900">
-              Student Workspace
-            </h1>
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
-              Active Cohort
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-zinc-500">
-            {overview?.message || `Enrolled as ${user?.name} (${user?.department || 'Computer Science'})`}
-          </p>
+      {statesError && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+        Learning progress is unavailable. <button className="font-semibold underline" onClick={fetchStates}>Retry progress</button>
+      </div>}
+      <section className="workspace-hero">
+        <div className="relative z-10 max-w-xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">Your learning workspace</p>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight">A little progress.<br />A deeper understanding.</h1>
+          <p className="mt-4 text-sm leading-6 text-slate-300">Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}. Explore your course, work through a concept, and make your next step count.</p>
+          <div className="mt-6 flex items-center gap-2 text-xs text-teal-100"><BookOpen className="h-4 w-4" /> Built around your academic material</div>
         </div>
-      </div>
+        <LearningSculpture />
+      </section>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4 border border-zinc-200">
+        <Card className="metric-card">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-zinc-500">Enrolled Courses</span>
             <BookOpen className="w-4 h-4 text-zinc-400" />
           </div>
-          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.available_subjects || subjects.length}</p>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.available_subjects ?? subjects.length}</p>
           <p className="text-[11px] text-zinc-400 mt-0.5">Faculty-approved syllabi</p>
         </Card>
 
-        <Card className="p-4 border border-zinc-200">
+        <Card className="metric-card">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-zinc-500">Curriculum Topics</span>
             <Layers className="w-4 h-4 text-zinc-400" />
           </div>
-          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.available_topics || 0}</p>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.available_topics ?? 0}</p>
           <p className="text-[11px] text-zinc-400 mt-0.5">Sequential learning modules</p>
         </Card>
 
-        <Card className="p-4 border border-zinc-200">
+        <Card className="metric-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500">Study Streak</span>
-            <Flame className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-medium text-zinc-500">Topics Practiced</span>
+            <Target className="w-4 h-4 text-teal-600" />
           </div>
-          <p className="text-2xl font-bold text-zinc-900 mt-2">{overview?.active_learning_streak || 1} Days</p>
-          <p className="text-[11px] text-zinc-400 mt-0.5">Consecutive active sessions</p>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{statesError ? '—' : recordedStates.length}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Topics with recorded attempts</p>
         </Card>
 
-        <Card className="p-4 border border-zinc-200">
+        <Card className="metric-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500">Target Mastery</span>
+            <span className="text-xs font-medium text-zinc-500">Average Mastery</span>
             <Award className="w-4 h-4 text-zinc-400" />
           </div>
-          <p className="text-2xl font-bold text-zinc-900 mt-2">80%</p>
-          <p className="text-[11px] text-zinc-400 mt-0.5">Class benchmark threshold</p>
+          <p className="text-2xl font-bold text-zinc-900 mt-2">{statesError || averageMastery === null ? '—' : `${averageMastery.toFixed(0)}%`}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">Practice indicator · assessed topics</p>
         </Card>
       </div>
 
+      {recommendation && activeTab === 'curriculum' && <section className="next-step">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-teal-700">Suggested next step</p>
+          <h2 className="mt-2 text-lg font-semibold text-slate-900">{recommendation.topic.name}</h2>
+          <p className="mt-1 text-sm text-slate-600">{recommendation.reason}</p>
+        </div>
+        <button className="study-button shrink-0" onClick={() => handleStartTutorOnTopic(recommendation.topic)}>Start learning <ArrowRight className="h-4 w-4" /></button>
+      </section>}
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-zinc-200">
         <button
-          onClick={() => setActiveTab('curriculum')}
+          aria-pressed={activeTab === 'curriculum'}
+          onClick={() => { setActiveTab('curriculum'); void fetchStates(); }}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             activeTab === 'curriculum'
               ? 'border-zinc-900 text-zinc-900'
@@ -162,6 +190,7 @@ export const StudentDashboard: React.FC = () => {
           Course Curriculum
         </button>
         <button
+          aria-pressed={activeTab === 'tutor'}
           onClick={() => setActiveTab('tutor')}
           className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px ${
             activeTab === 'tutor'
@@ -188,10 +217,12 @@ export const StudentDashboard: React.FC = () => {
             </div>
             <div className="space-y-1.5">
               {subjects.map((sub) => (
-                <div
+                <button
+                  type="button"
+                  aria-pressed={selectedSubject?.id === sub.id}
                   key={sub.id}
-                  onClick={() => setSelectedSubject(sub)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                  onClick={() => { setSelectedSubject(sub); setQuery(''); setFilter('all'); setActiveTopicForTutor(undefined); }}
+                  className={`w-full text-left p-4 rounded-lg border cursor-pointer transition-colors ${
                     selectedSubject?.id === sub.id
                       ? 'border-zinc-900 bg-zinc-100/70 shadow-sm'
                       : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50'
@@ -203,8 +234,8 @@ export const StudentDashboard: React.FC = () => {
                     </span>
                     <span className="text-[11px] text-zinc-500">{sub.topics?.length || 0} topics</span>
                   </div>
-                  <h3 className="mt-1.5 font-medium text-zinc-900 text-xs truncate">{sub.name}</h3>
-                </div>
+                  <span className="block mt-2 font-medium text-zinc-900 text-sm">{sub.name}</span>
+                </button>
               ))}
             </div>
           </div>
@@ -225,17 +256,24 @@ export const StudentDashboard: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {selectedSubject?.topics && selectedSubject.topics.length > 0 ? (
-                selectedSubject.topics.map((t, idx) => {
-                  const state = learningStates[t.id];
+            <div className="flex flex-col sm:flex-row gap-3">
+              <label className="flex-1"><span className="sr-only">Search course topics</span><input type="search" className="field" placeholder="Search topics, modules, or concepts…" value={query} onChange={event => setQuery(event.target.value)} /></label>
+              <label><span className="sr-only">Filter topics by progress</span><select className="field" value={filter} disabled={statesError} onChange={event => setFilter(event.target.value as TopicFilter)}>
+                <option value="all">All progress</option><option value="review">Needs review</option><option value="new">Not started</option><option value="mastered">Mastered</option>
+              </select></label>
+            </div>
+            <p role="status" className="text-xs text-slate-500">{visibleTopics.length} of {topics.length} topics</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {visibleTopics.length > 0 ? (
+                visibleTopics.map((t, idx) => {
+                  const state = statesError ? undefined : learningStates[t.id];
                   const mastery = state?.mastery_score || 0;
                   const status = state?.status || 'NOT_STARTED';
 
                   return (
                     <div
                       key={t.id || idx}
-                      className="bg-white p-4 rounded-xl border border-slate-200 hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between group"
+                      className="topic-card bg-white p-5 rounded-xl border border-slate-200 hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between group"
                     >
                       <div>
                         <div className="flex items-center justify-between mb-2">
@@ -272,12 +310,12 @@ export const StudentDashboard: React.FC = () => {
                         <div className="space-y-1 mb-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="text-slate-500 font-medium">Topic Mastery:</span>
-                            <span className="font-bold text-slate-800">{mastery.toFixed(1)}%</span>
+                            <span className="font-bold text-slate-800">{statesError ? 'Unavailable' : `${mastery.toFixed(1)}%`}</span>
                           </div>
                           <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                             <div
                               className="bg-blue-600 h-full rounded-full transition-all"
-                              style={{ width: `${Math.min(100, mastery)}%` }}
+                              style={{ width: `${statesError ? 0 : Math.max(0, Math.min(100, mastery))}%` }}
                             />
                           </div>
                           {state && state.attempts > 0 && (
@@ -308,7 +346,7 @@ export const StudentDashboard: React.FC = () => {
                 })
               ) : (
                 <div className="col-span-2 p-8 text-center bg-white rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm">
-                  No topics configured for this course yet.
+                  {topics.length ? 'No topics match your filters. Try a different search or progress filter.' : 'No topics configured for this course yet.'}
                 </div>
               )}
             </div>

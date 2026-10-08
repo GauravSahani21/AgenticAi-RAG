@@ -39,3 +39,50 @@
     @apply mb-1.5 block text-xs font-medium text-zinc-700;
   }
 }
+
+/* Workspace styling stays scoped so existing forms and dialogs keep their layout. */
+.app-workspace { background: #f5f7f9; }
+.workspace-hero {
+  position: relative; overflow: hidden; padding: 2.5rem;
+  border-radius: 1.5rem; color: white;
+  background: radial-gradient(ellipse at 90% 30%, #245f62 0%, transparent 48%), #142b38;
+  border: 1px solid #294652;
+}
+.next-step {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+  padding: 1.5rem; border: 1px solid #cce4df; border-radius: 1rem;
+  background: linear-gradient(110deg, #edf8f5, #fff);
+}
+.study-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+  padding: .8rem 1.1rem; border-radius: .6rem; background: #16665d;
+  color: white; font-weight: 600; font-size: .875rem;
+  transition: background 180ms ease, transform 180ms ease;
+}
+.study-button:hover { background: #104e48; transform: translateY(-1px); }
+.metric-card { box-shadow: 0 2px 4px #142b3803; }
+.topic-card { box-shadow: 0 2px 4px #142b3803; }
+.topic-card:hover { transform: translateY(-2px); }
+:where(button, a, input, select, textarea):focus-visible { outline: 3px solid #0d9488; outline-offset: 3px; }
+.skip-link { position: fixed; left: 1rem; top: -5rem; z-index: 100; padding: .75rem 1rem; background: white; color: #142b38; border-radius: .5rem; }
+.skip-link:focus { top: 1rem; }
+.learning-sculpture { position: absolute; width: 260px; height: 240px; right: 5%; top: 15%; perspective: 800px; pointer-events: none; }
+.sculpture-stack { position: absolute; inset: 30px; transform-style: preserve-3d; transform: rotateX(56deg) rotateZ(-32deg); animation: sculpture-arrive 900ms ease-out both; }
+.sculpture-stack i { position: absolute; inset: 0; border: 1px solid #a7e7de99; border-radius: 28px; background: linear-gradient(135deg, #8ce5d94d, #1a766e26); box-shadow: 12px 18px 25px #031e3133, inset 1px 1px 0 #c0fff3a6; }
+.sculpture-stack i:nth-child(1) { transform: translateZ(-54px); }
+.sculpture-stack i:nth-child(2) { transform: translateZ(-18px); }
+.sculpture-stack i:nth-child(3) { transform: translateZ(18px); }
+.sculpture-stack i:nth-child(4) { transform: translateZ(54px); background: linear-gradient(135deg, #9decdc80, #2c8b8033); }
+.sculpture-orbit { position: absolute; inset: -12px; border: 1px solid #83c9c32b; border-radius: 50%; transform: rotate(-30deg) scaleY(.7); }
+.sculpture-dot { position: absolute; right: 0; top: 30px; width: 12px; height: 12px; border-radius: 50%; background: #b2f0d9; box-shadow: 0 0 30px #9eeee999; }
+@keyframes sculpture-arrive { from { opacity: 0; transform: rotateX(56deg) rotateZ(-42deg) translateY(20px); } to { opacity: 1; transform: rotateX(56deg) rotateZ(-32deg); } }
+@media (max-width: 1023px) { .learning-sculpture { right: -60px; opacity: .35; } }
+@media (max-width: 639px) {
+  .workspace-hero { padding: 1.5rem; }
+  .learning-sculpture { display: none; }
+  .next-step { align-items: stretch; flex-direction: column; padding: 1.25rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .topic-card:hover, .study-button:hover { transform: none; }
+}
