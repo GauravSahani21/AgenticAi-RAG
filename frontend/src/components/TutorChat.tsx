@@ -1,17 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Subject, ChatMessage } from '../types';
 import { tutorService } from '../services/api';
+import { TutorEvidence } from './TutorEvidence';
 import { Button } from './Button';
 import { 
   Send, 
   Bot, 
   User, 
   BookOpen, 
-  FileText, 
   CheckCircle2, 
   AlertTriangle, 
-  ChevronDown, 
-  ChevronUp
 } from 'lucide-react';
 
 interface TutorChatProps {
@@ -34,7 +32,6 @@ export const TutorChat: React.FC<TutorChatProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedSources, setExpandedSources] = useState<{ [key: string]: boolean }>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -55,23 +52,16 @@ export const TutorChat: React.FC<TutorChatProps> = ({
         {
           id: 'welcome',
           sender: 'tutor',
-          text: `Hello! I am your AI Academic Tutor for ${currentSubject?.name || 'your course'}. Ask me any question, and I will explain it using your faculty-approved course materials and cite exact source slides or readings.`,
+          text: `Hello! I am your AI Academic Tutor for ${currentSubject?.name || 'your course'}. Ask me any question, and I will explain it using your faculty-approved course materials and show available source passages. If course evidence is insufficient, I will indicate that.`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
     }
-  }, [selectedSubjectId]);
+  }, [selectedSubjectId, selectedTopicId, currentSubject?.name, messages.length]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }, [messages, isLoading]);
-
-  const toggleSourceExpand = (msgId: string) => {
-    setExpandedSources((prev) => ({
-      ...prev,
-      [msgId]: !prev[msgId],
-    }));
-  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
@@ -121,13 +111,10 @@ export const TutorChat: React.FC<TutorChatProps> = ({
       };
 
       setMessages((prev) => [...prev, botMsg]);
-      // Auto-expand sources if grounded
-      if (resp.sources && resp.sources.length > 0) {
-        setExpandedSources((prev) => ({ ...prev, [botMsgId]: true }));
-      }
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || 'Failed to receive response from AI Tutor.';
       setError(errorMsg);
+      setInputMessage(text);
     } finally {
       setIsLoading(false);
     }
@@ -152,25 +139,30 @@ export const TutorChat: React.FC<TutorChatProps> = ({
             <h3 className="text-sm font-semibold flex items-center gap-2">
               Course Tutor
               <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                Syllabus Grounded
+                Course-aware
               </span>
             </h3>
             <p className="text-[11px] text-zinc-400">
-              Answers verified against faculty-uploaded curriculum materials
+              Explore concepts and inspect the course evidence behind each response
             </p>
           </div>
         </div>
 
         {/* Course & Topic Selectors */}
-        <div className="flex items-center gap-2">
+        <div className="grid min-w-0 gap-2 sm:max-w-[50%] sm:grid-cols-2">
           <select
+            aria-label="Tutor course"
+            disabled={isLoading}
             value={selectedSubjectId}
             onChange={(e) => {
               setSelectedSubjectId(e.target.value);
               setSelectedTopicId('');
               setSessionId(null);
+              setMessages([]);
+              setInputMessage('');
+              setError(null);
             }}
-            className="text-xs rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            className="w-full min-w-0 text-xs rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-400"
           >
             {subjects.map((s) => (
               <option key={s.id} value={s.id}>
@@ -180,12 +172,17 @@ export const TutorChat: React.FC<TutorChatProps> = ({
           </select>
 
           <select
+            aria-label="Tutor topic"
+            disabled={isLoading}
             value={selectedTopicId}
             onChange={(e) => {
               setSelectedTopicId(e.target.value);
               setSessionId(null);
+              setMessages([]);
+              setInputMessage('');
+              setError(null);
             }}
-            className="text-xs rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            className="w-full min-w-0 text-xs rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-400"
           >
             <option value="">General Subject</option>
             {availableTopics.map((t) => (
@@ -197,14 +194,16 @@ export const TutorChat: React.FC<TutorChatProps> = ({
         </div>
       </div>
 
+      <p className="border-b border-slate-200 px-4 py-2 text-xs text-slate-500">Changing the course or topic starts a new conversation.</p>
+
       {/* Scope Banner */}
       <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-200 flex items-center justify-between text-xs text-zinc-700">
-        <span className="flex items-center gap-1.5">
+        <span className="flex flex-wrap items-center gap-1.5">
           <BookOpen className="w-3.5 h-3.5 text-zinc-500" />
           Focus: <span className="font-medium text-zinc-900">{currentSubject?.name || 'Selected Course'}</span>
           {currentTopic && <span className="text-zinc-500"> / {currentTopic.name}</span>}
         </span>
-        <span className="text-[11px] text-zinc-500 font-mono">ChromaDB Indexed</span>
+
       </div>
 
       {/* Messages Scroll Area */}
@@ -230,7 +229,7 @@ export const TutorChat: React.FC<TutorChatProps> = ({
             </div>
 
             {/* Bubble */}
-            <div className={`space-y-2 max-w-[85%] sm:max-w-[78%]`}>
+            <div className="min-w-0 space-y-2 max-w-[85%] sm:max-w-[78%]">
               <div
                 className={`p-4 rounded-2xl text-sm leading-relaxed ${
                   msg.sender === 'student'
@@ -259,12 +258,12 @@ export const TutorChat: React.FC<TutorChatProps> = ({
                           {msg.grounded ? (
                             <>
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              Course Verified
+                              Course sources used
                             </>
                           ) : (
                             <>
                               <AlertTriangle className="w-3 h-3 text-amber-600" />
-                              General Background
+                              Not course-grounded
                             </>
                           )}
                         </span>
@@ -274,51 +273,15 @@ export const TutorChat: React.FC<TutorChatProps> = ({
                   </div>
                 )}
 
-                <div className="whitespace-pre-wrap">{msg.text}</div>
+                <div className="whitespace-pre-wrap break-words">{msg.text}</div>
 
               </div>
 
-              {/* Source Documents Accordion */}
               {msg.sender === 'tutor' && msg.sources && msg.sources.length > 0 && (
-                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs">
-                  <button
-                    onClick={() => toggleSourceExpand(msg.id)}
-                    className="w-full flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-blue-600 transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-blue-600" />
-                      Academic Sources ({msg.sources.length})
-                    </span>
-                    {expandedSources[msg.id] ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    )}
-                  </button>
-
-                  {expandedSources[msg.id] && (
-                    <div className="mt-2.5 space-y-2 pt-2 border-t border-slate-100">
-                      {msg.sources.map((s, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1"
-                        >
-                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-800">
-                            <span>
-                              {s.document} • Page {s.page}
-                            </span>
-                            <span className="text-emerald-600">
-                              {(s.similarity_score * 100).toFixed(0)}% match
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-600 font-mono line-clamp-3 bg-white p-1.5 rounded border border-slate-100">
-                            {s.snippet}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <TutorEvidence sources={msg.sources} grounded={msg.grounded} />
+              )}
+              {msg.sender === 'tutor' && msg.groundingStatus && !msg.sources?.length && (
+                <p className="text-xs text-amber-800">No course passages were returned for this response. Check the explanation against your course material.</p>
               )}
             </div>
           </div>
@@ -352,6 +315,7 @@ export const TutorChat: React.FC<TutorChatProps> = ({
           {quickPrompts.map((qp, i) => (
             <button
               key={i}
+              disabled={isLoading}
               onClick={() => handleSendMessage(qp)}
               className="px-2.5 py-1 rounded-md bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200 text-xs transition-colors whitespace-nowrap shrink-0"
             >
@@ -363,7 +327,7 @@ export const TutorChat: React.FC<TutorChatProps> = ({
 
       {/* Error alert */}
       {error && (
-        <div className="px-4 py-2 bg-rose-50 border-t border-rose-200 text-rose-700 text-xs flex items-center justify-between">
+        <div role="alert" className="px-4 py-2 bg-rose-50 border-t border-rose-200 text-rose-700 text-xs flex items-center justify-between">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="font-bold underline">
             Dismiss
@@ -382,14 +346,17 @@ export const TutorChat: React.FC<TutorChatProps> = ({
         >
           <input
             type="text"
+            aria-label="Message to course tutor"
+            maxLength={2000}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="Ask a question about your academic course material..."
             disabled={isLoading}
-            className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-50 transition-all"
+            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-50 transition-all"
           />
           <Button
             type="submit"
+            aria-label="Send message"
             variant="primary"
             size="md"
             isLoading={isLoading}
