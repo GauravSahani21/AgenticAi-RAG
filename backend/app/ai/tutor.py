@@ -155,7 +155,7 @@ async def generate_response(
                 "document": c["document_name"],
                 "page": c["page_number"],
                 "section": c["section"],
-                "snippet": c["content"][:200] + ("..." if len(c["content"]) > 200 else ""),
+                "snippet": c["content"],
                 "similarity_score": c["similarity_score"]
             })
 
