@@ -65,13 +65,31 @@ export interface AdminOverview {
 export interface DocumentItem {
   id: string;
   subject_id: string;
+  subject_name?: string | null;
   topic_id?: string | null;
+  topic_name?: string | null;
   filename: string;
   file_type: string;
   file_size?: number | null;
   chunk_count: number;
   uploaded_by?: string | null;
+  uploader_name?: string | null;
   uploaded_at: string;
+}
+
+export interface DocumentContentResponse {
+  id: string;
+  filename: string;
+  file_type: string;
+  file_size?: number | null;
+  subject_id: string;
+  subject_name?: string | null;
+  topic_id?: string | null;
+  topic_name?: string | null;
+  uploader_name?: string | null;
+  chunk_count: number;
+  uploaded_at: string;
+  content: string;
 }
 
 export interface RAGSearchResult {

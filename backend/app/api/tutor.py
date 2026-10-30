@@ -27,14 +27,24 @@ async def tutor_chat(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student)
 ):
-    # 1. Validate Subject exists
-    subject = db.query(Subject).filter(Subject.id == request.subject_id).first()
-    if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
-
+    # 1. Validate Subject exists or resolve from topic
+    subject_id = request.subject_id
     topic = None
     if request.topic_id:
-        topic = db.query(Topic).filter(Topic.id == request.topic_id, Topic.subject_id == request.subject_id).first()
+        topic = db.query(Topic).filter(Topic.id == request.topic_id).first()
+        if topic and not subject_id:
+            subject_id = topic.subject_id
+
+    if not subject_id:
+        first_sub = db.query(Subject).first()
+        if first_sub:
+            subject_id = first_sub.id
+        else:
+            raise HTTPException(status_code=404, detail="No academic subjects found")
+
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
 
     # 2. Retrieve or create session
     session = None
@@ -47,7 +57,7 @@ async def tutor_chat(
     if not session:
         session = LearningSession(
             student_id=current_user.id,
-            subject_id=request.subject_id,
+            subject_id=subject_id,
             topic_id=request.topic_id
         )
         db.add(session)
@@ -57,7 +67,7 @@ async def tutor_chat(
     # 3. Retrieve Academic Chunks via RAG
     rag_chunks = vector_store.search(
         query=request.message,
-        subject_id=request.subject_id,
+        subject_id=subject_id,
         topic_id=request.topic_id,
         top_k=4
     )
@@ -112,7 +122,7 @@ async def tutor_chat(
         grounding_status=ai_result["grounding_status"],
         sources=sources,
         session_id=session.id,
-        subject_id=request.subject_id,
+        subject_id=subject_id,
         topic_id=request.topic_id,
         created_at=interaction.created_at
     )

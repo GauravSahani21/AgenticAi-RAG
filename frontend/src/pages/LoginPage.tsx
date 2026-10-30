@@ -8,12 +8,49 @@ import {
   Mail,
   Lock,
   ArrowRight,
+  Eye,
+  EyeOff,
   UserCheck,
   BookOpen,
   ShieldCheck,
-  Eye,
-  EyeOff
+  Check
 } from 'lucide-react';
+
+interface RoleOption {
+  id: 'STUDENT' | 'FACULTY' | 'ADMIN';
+  label: string;
+  sublabel: string;
+  email: string;
+  password: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const PRESET_ROLES: RoleOption[] = [
+  {
+    id: 'STUDENT',
+    label: 'Student',
+    sublabel: 'Jane Student',
+    email: 'student@adaptivelearn.edu',
+    password: 'Password123!',
+    icon: UserCheck,
+  },
+  {
+    id: 'FACULTY',
+    label: 'Instructor / Teacher',
+    sublabel: 'Prof. Alan Turing',
+    email: 'faculty@adaptivelearn.edu',
+    password: 'Password123!',
+    icon: BookOpen,
+  },
+  {
+    id: 'ADMIN',
+    label: 'Administrator',
+    sublabel: 'IT Admin',
+    email: 'admin@adaptivelearn.edu',
+    password: 'Password123!',
+    icon: ShieldCheck,
+  },
+];
 
 export const LoginPage: React.FC = () => {
   const { login, getDashboardRoute } = useAuth();
@@ -22,17 +59,17 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const performLogin = async (loginEmail: string, loginPass: string) => {
     setError(null);
     setLoading(true);
 
     try {
-      const user = await login(email, password);
+      const user = await login(loginEmail, loginPass);
       const from = (location.state as any)?.from?.pathname || getDashboardRoute(user.role);
       navigate(from, { replace: true });
     } catch (err: any) {
@@ -43,9 +80,15 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const fillDemoAccount = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('Password123!');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performLogin(email, password);
+  };
+
+  const handleSelectRole = (role: RoleOption) => {
+    setSelectedRole(role.id);
+    setEmail(role.email);
+    setPassword(role.password);
     setError(null);
   };
 
@@ -61,11 +104,45 @@ export const LoginPage: React.FC = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 shadow-sm">
           {/* Card Title */}
-          <div className="mb-6">
+          <div className="mb-5">
             <h2 className="text-base font-semibold text-zinc-900">Sign in to your account</h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Enter your university credentials to continue
+              Select a role below or enter your institutional credentials
             </p>
+          </div>
+
+          {/* Role Selector Options */}
+          <div className="mb-5">
+            <label className="block text-xs font-semibold text-zinc-700 mb-2">
+              Select Role to Login
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {PRESET_ROLES.map((r) => {
+                const Icon = r.icon;
+                const isSelected = selectedRole === r.id || email === r.email;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => handleSelectRole(r)}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+                      isSelected
+                        ? 'border-teal-600 bg-teal-50/80 text-teal-900 ring-2 ring-teal-600/20 font-medium'
+                        : 'border-zinc-200 bg-zinc-50/60 hover:bg-zinc-100/80 text-zinc-700 hover:border-zinc-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <Icon className={`w-4 h-4 ${isSelected ? 'text-teal-700' : 'text-zinc-500'}`} />
+                      {isSelected && <Check className="w-3 h-3 text-teal-700" />}
+                    </div>
+                    <span className="text-xs font-semibold mt-1 leading-tight">{r.label}</span>
+                    <span className="text-[10px] text-zinc-400 mt-0.5 truncate max-w-full">
+                      {r.sublabel.split(' ')[0]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Error Message */}
@@ -94,7 +171,10 @@ export const LoginPage: React.FC = () => {
                   required
                   placeholder="name@adaptivelearn.edu"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setSelectedRole(null);
+                  }}
                   className="block w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 transition-colors"
                 />
               </div>
@@ -143,43 +223,6 @@ export const LoginPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </Button>
           </form>
-
-          {/* Quick Demo Access Buttons */}
-          <div className="mt-6 pt-5 border-t border-zinc-100">
-            <div className="flex items-center justify-between text-xs text-zinc-500 mb-2.5">
-              <span className="font-medium text-zinc-700">Quick Demo Access</span>
-              <span className="text-[11px] text-zinc-400">Click to fill</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => fillDemoAccount('student@adaptivelearn.edu')}
-                className="flex items-center justify-center gap-1.5 py-2 px-2.5 text-xs font-medium bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 rounded-lg border border-zinc-200 transition-colors"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-zinc-500" />
-                <span>Student</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemoAccount('faculty@adaptivelearn.edu')}
-                className="flex items-center justify-center gap-1.5 py-2 px-2.5 text-xs font-medium bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 rounded-lg border border-zinc-200 transition-colors"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-zinc-500" />
-                <span>Faculty</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemoAccount('admin@adaptivelearn.edu')}
-                className="flex items-center justify-center gap-1.5 py-2 px-2.5 text-xs font-medium bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 rounded-lg border border-zinc-200 transition-colors"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-zinc-500" />
-                <span>Admin</span>
-              </button>
-            </div>
-            <div className="mt-2.5 text-center text-[11px] text-zinc-400">
-              Preset password: <code className="font-mono text-zinc-600 bg-zinc-100 px-1 py-0.5 rounded">Password123!</code>
-            </div>
-          </div>
 
           {/* Registration Link */}
           <div className="mt-6 pt-4 border-t border-zinc-100 text-center text-xs text-zinc-500">

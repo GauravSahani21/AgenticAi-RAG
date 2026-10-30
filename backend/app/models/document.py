@@ -22,5 +22,17 @@ class Document(Base):
     topic = relationship("Topic", back_populates="documents")
     uploader = relationship("User", back_populates="documents")
 
+    @property
+    def subject_name(self):
+        return self.subject.name if self.subject else None
+
+    @property
+    def topic_name(self):
+        return self.topic.name if self.topic else None
+
+    @property
+    def uploader_name(self):
+        return self.uploader.name if self.uploader else None
+
     def __repr__(self):
         return f"<Document {self.filename} ({self.file_type})>"

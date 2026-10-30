@@ -41,6 +41,8 @@ yarn-error.log*
 *.sqlite
 *.sqlite3
 chroma_data/
+backend/documents/*
+!backend/documents/.gitkeep
 
 # IDE & OS
 .DS_Store

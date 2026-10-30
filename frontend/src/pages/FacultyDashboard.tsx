@@ -38,6 +38,17 @@ export const FacultyDashboard: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<'materials' | 'analytics'>('analytics');
 
+  // Topic creation & targeted upload state
+  const [addingTopicSubjectId, setAddingTopicSubjectId] = useState<string | null>(null);
+  const [newTopicName, setNewTopicName] = useState<string>('');
+  const [newTopicModule, setNewTopicModule] = useState<string>('Module 1');
+  const [newTopicDifficulty, setNewTopicDifficulty] = useState<string>('INTERMEDIATE');
+  const [creatingTopic, setCreatingTopic] = useState<boolean>(false);
+  const [topicError, setTopicError] = useState<string | null>(null);
+
+  const [uploadTargetSubjectId, setUploadTargetSubjectId] = useState<string | undefined>(undefined);
+  const [uploadTargetTopicId, setUploadTargetTopicId] = useState<string | undefined>(undefined);
+
   const fetchData = async () => {
     try {
       const [ovData, subData, docsData] = await Promise.all([
@@ -74,6 +85,31 @@ export const FacultyDashboard: React.FC = () => {
       setFormError(err.response?.data?.detail || 'Failed to create subject.');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleCreateTopic = async (e: React.FormEvent, subjectId: string) => {
+    e.preventDefault();
+    if (!newTopicName.trim()) {
+      setTopicError('Topic name is required');
+      return;
+    }
+    setCreatingTopic(true);
+    setTopicError(null);
+    try {
+      await curriculumService.createTopic({
+        subject_id: subjectId,
+        name: newTopicName.trim(),
+        module: newTopicModule.trim() || 'Module 1',
+        difficulty: newTopicDifficulty
+      });
+      setNewTopicName('');
+      setAddingTopicSubjectId(null);
+      await fetchData();
+    } catch (err: any) {
+      setTopicError(err.response?.data?.detail || 'Failed to create topic');
+    } finally {
+      setCreatingTopic(false);
     }
   };
 
@@ -381,18 +417,120 @@ export const FacultyDashboard: React.FC = () => {
                   </span>
                   <h3 className="text-base font-bold text-slate-900">{sub.name}</h3>
                 </div>
-                <span className="text-xs text-slate-500">
-                  {sub.topics?.length || 0} Topics configured
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500">
+                    {sub.topics?.length || 0} Topics configured
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setAddingTopicSubjectId(addingTopicSubjectId === sub.id ? null : sub.id);
+                      setTopicError(null);
+                    }}
+                    className="flex items-center gap-1 text-xs py-1 px-2.5"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5 text-teal-700" />
+                    {addingTopicSubjectId === sub.id ? 'Cancel' : 'Add Topic'}
+                  </Button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 pt-2">
-                {sub.topics && sub.topics.map((t, idx) => (
-                  <div key={t.id || idx} className="bg-white p-3 rounded-lg border border-slate-200 text-xs">
-                    <span className="text-[10px] font-semibold text-slate-400 block uppercase">
-                      {t.module} • {t.difficulty}
+              {/* Inline Add Topic Form */}
+              {addingTopicSubjectId === sub.id && (
+                <form
+                  onSubmit={(e) => handleCreateTopic(e, sub.id)}
+                  className="p-4 rounded-xl bg-white border border-teal-200 shadow-xs space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-teal-900 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-teal-600" /> Add Topic to {sub.name}
                     </span>
-                    <span className="font-semibold text-slate-800 block mt-0.5">{t.name}</span>
+                  </div>
+                  {topicError && (
+                    <p className="text-xs text-rose-600 bg-rose-50 p-2 rounded border border-rose-200">
+                      {topicError}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-1">
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Module / Unit</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Module 5"
+                        value={newTopicModule}
+                        onChange={(e) => setNewTopicModule(e.target.value)}
+                        className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Topic Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Diffusion Models"
+                        value={newTopicName}
+                        onChange={(e) => setNewTopicName(e.target.value)}
+                        className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Difficulty</label>
+                      <select
+                        value={newTopicDifficulty}
+                        onChange={(e) => setNewTopicDifficulty(e.target.value)}
+                        className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        <option value="BEGINNER">BEGINNER</option>
+                        <option value="INTERMEDIATE">INTERMEDIATE</option>
+                        <option value="ADVANCED">ADVANCED</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAddingTopicSubjectId(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      isLoading={creatingTopic}
+                      className="bg-teal-700 hover:bg-teal-800"
+                    >
+                      Save Topic
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2">
+                {sub.topics && sub.topics.map((t, idx) => (
+                  <div key={t.id || idx} className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
+                    <div>
+                      <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wide">
+                        {t.module} • {t.difficulty}
+                      </span>
+                      <span className="font-semibold text-slate-800 block mt-0.5">{t.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadTargetSubjectId(sub.id);
+                        setUploadTargetTopicId(t.id);
+                        setShowUploadModal(true);
+                      }}
+                      className="text-[11px] font-medium text-teal-700 hover:text-teal-900 flex items-center gap-1 mt-2.5 pt-1.5 border-t border-slate-100"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>Upload Material</span>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -406,10 +544,19 @@ export const FacultyDashboard: React.FC = () => {
       {/* Upload Modal */}
       <DocumentUploadModal
         isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
+        onClose={() => {
+          setShowUploadModal(false);
+          setUploadTargetSubjectId(undefined);
+          setUploadTargetTopicId(undefined);
+        }}
         subjects={subjects}
+        initialSubjectId={uploadTargetSubjectId}
+        initialTopicId={uploadTargetTopicId}
         onUploadSuccess={() => {
           fetchData();
+        }}
+        onRefreshSubjects={async () => {
+          await fetchData();
         }}
       />
     </div>

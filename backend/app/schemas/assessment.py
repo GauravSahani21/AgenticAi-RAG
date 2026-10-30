@@ -35,10 +35,11 @@ class GeneratedQuestionResponse(BaseModel):
 
 class AssessmentSubmitRequest(BaseModel):
     topic_id: str
-    question_text: str
-    question_type: str
-    difficulty: str
-    student_answer: str = Field(..., min_length=1, max_length=2000)
+    question_id: Optional[str] = None
+    question_text: Optional[str] = "Diagnostic Assessment Question"
+    question_type: Optional[str] = "CONCEPTUAL"
+    difficulty: Optional[str] = "INTERMEDIATE"
+    student_answer: str = Field(..., min_length=1, max_length=5000)
     session_id: Optional[str] = None
 
 class AssessmentSubmitResponse(BaseModel):

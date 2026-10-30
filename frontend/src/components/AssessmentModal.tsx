@@ -284,19 +284,34 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                   {/* Mastery Score Progress */}
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-700">Updated Mastery Score</span>
+                      <span className="font-semibold text-slate-700">Updated Topic Mastery</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-400 line-through">{result.previous_mastery.toFixed(1)}%</span>
-                        <span className="text-sm font-extrabold text-blue-700">{result.updated_mastery.toFixed(1)}%</span>
+                        <span className="text-slate-400 text-xs">{result.previous_mastery.toFixed(1)}%</span>
+                        <span className="text-slate-400 text-xs">&rarr;</span>
+                        <span className="text-sm font-extrabold text-slate-900">{result.updated_mastery.toFixed(1)}%</span>
+                        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                          result.updated_mastery >= result.previous_mastery 
+                            ? 'bg-emerald-100 text-emerald-800' 
+                            : 'bg-rose-100 text-rose-800'
+                        }`}>
+                          {result.updated_mastery >= result.previous_mastery ? '+' : ''}
+                          {(result.updated_mastery - result.previous_mastery).toFixed(1)}%
+                        </span>
                         <Badge variant={result.is_correct ? 'success' : 'warning'} size="sm">
                           {result.status}
                         </Badge>
                       </div>
                     </div>
-                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden border border-slate-300/40 p-0.5">
                       <div
-                        className="bg-blue-600 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(100, result.updated_mastery)}%` }}
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          result.updated_mastery >= 80 
+                            ? 'bg-emerald-500' 
+                            : result.updated_mastery >= 50 
+                            ? 'bg-blue-600' 
+                            : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${Math.max(result.updated_mastery > 0 ? 4 : 0, Math.min(100, result.updated_mastery))}%` }}
                       />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-slate-500">

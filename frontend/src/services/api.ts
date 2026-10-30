@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AuthResponse, User, Subject, Topic, StudentOverview, FacultyOverview, AdminOverview } from '../types';
+import type { AuthResponse, User, Subject, Topic, StudentOverview, FacultyOverview, AdminOverview, DocumentContentResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -130,6 +130,25 @@ export const documentService = {
       },
     });
     return response.data;
+  },
+
+  getDocumentContent: async (id: string): Promise<DocumentContentResponse> => {
+    const response = await api.get<DocumentContentResponse>(`/api/documents/${id}/content`);
+    return response.data;
+  },
+
+  downloadDocument: async (id: string, filename: string): Promise<void> => {
+    const response = await api.get(`/api/documents/${id}/download`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
 
   deleteDocument: async (id: string): Promise<{ message: string }> => {

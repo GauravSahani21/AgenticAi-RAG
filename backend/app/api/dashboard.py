@@ -8,6 +8,10 @@ from app.models.topic import Topic
 from app.schemas.auth import UserResponse
 from app.auth.dependencies import require_student, require_faculty, require_admin
 
+from datetime import datetime, timezone, timedelta
+from app.models.learning_state import LearningState
+from app.models.assessment import Assessment
+
 router = APIRouter(prefix="/api", tags=["Dashboards"])
 
 @router.get("/student/overview")
@@ -17,13 +21,44 @@ def get_student_overview(
 ):
     subjects_count = db.query(Subject).count()
     topics_count = db.query(Topic).count()
+
+    # Calculate real-time active streak from actual user assessment activity
+    assessments = db.query(Assessment.created_at).filter(
+        Assessment.student_id == current_user.id
+    ).order_by(Assessment.created_at.desc()).all()
+
+    streak = 0
+    if assessments:
+        unique_dates = sorted(list(set(a[0].date() for a in assessments if a[0])), reverse=True)
+        today = datetime.now(timezone.utc).date()
+        current_check = today
+        for d in unique_dates:
+            if d == current_check or d == current_check - timedelta(days=1):
+                streak += 1
+                current_check = d
+            else:
+                break
+
+    # Calculate real-time assessed topics and status
+    learning_states = db.query(LearningState).filter(LearningState.student_id == current_user.id).all()
+    assessed_topics = sum(1 for ls in learning_states if ls.attempts > 0)
+    mastered_topics = sum(1 for ls in learning_states if ls.mastery_score >= 80.0)
+
+    if assessed_topics == 0:
+        status_msg = "Not Started"
+        welcome_msg = f"Welcome, {current_user.name}! Choose a topic to begin your real-time learning assessments."
+    else:
+        avg_m = sum(ls.mastery_score for ls in learning_states if ls.attempts > 0) / assessed_topics
+        status_msg = f"{assessed_topics} topics practiced"
+        welcome_msg = f"Welcome back, {current_user.name}! You have achieved {round(avg_m, 1)}% average mastery across {assessed_topics} assessed topics."
+
     return {
         "user": UserResponse.model_validate(current_user),
         "available_subjects": subjects_count,
         "available_topics": topics_count,
-        "active_learning_streak": 3,
-        "status": "Ready to learn",
-        "message": f"Welcome back, {current_user.name}! Your adaptive learning journey is active."
+        "active_learning_streak": streak,
+        "status": status_msg,
+        "message": welcome_msg
     }
 
 @router.get("/faculty/overview")

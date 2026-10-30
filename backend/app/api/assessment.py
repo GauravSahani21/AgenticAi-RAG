@@ -158,6 +158,10 @@ def submit_assessment_endpoint(
         LearningState.topic_id == topic.id
     ).first()
 
+    diff_val = request.difficulty or topic.difficulty or "INTERMEDIATE"
+    q_type = request.question_type or "CONCEPTUAL"
+    q_text = request.question_text or f"Diagnostic question on {topic.name}"
+
     if not state:
         state = LearningState(
             student_id=current_user.id,
@@ -168,7 +172,7 @@ def submit_assessment_endpoint(
             correct_answers=0,
             incorrect_answers=0,
             misconceptions="[]",
-            difficulty_level=request.difficulty,
+            difficulty_level=diff_val,
             status="NOT_STARTED"
         )
         db.add(state)
@@ -179,8 +183,8 @@ def submit_assessment_endpoint(
 
     # 2. Evaluate answer
     eval_result = evaluate_student_answer(
-        question_text=request.question_text,
-        question_type=request.question_type,
+        question_text=q_text,
+        question_type=q_type,
         student_answer=request.student_answer,
         topic_name=topic.name
     )
@@ -197,7 +201,7 @@ def submit_assessment_endpoint(
         current_correct=state.correct_answers,
         current_incorrect=state.incorrect_answers,
         is_correct=is_correct,
-        difficulty=request.difficulty,
+        difficulty=diff_val,
         confidence=state.confidence_score
     )
 
@@ -211,7 +215,7 @@ def submit_assessment_endpoint(
     state.mastery_score = new_mastery
     state.confidence_score = new_conf
     state.status = new_status
-    state.difficulty_level = request.difficulty
+    state.difficulty_level = diff_val
 
     # Append misconception if detected
     if misconception:
@@ -228,9 +232,9 @@ def submit_assessment_endpoint(
         student_id=current_user.id,
         topic_id=topic.id,
         session_id=request.session_id,
-        question_text=request.question_text,
-        question_type=request.question_type,
-        difficulty=request.difficulty,
+        question_text=q_text,
+        question_type=q_type,
+        difficulty=diff_val,
         student_answer=request.student_answer,
         is_correct=is_correct,
         score=score,

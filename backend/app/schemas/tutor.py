@@ -10,7 +10,7 @@ class TutorSource(BaseModel):
     similarity_score: float
 
 class TutorChatRequest(BaseModel):
-    subject_id: str
+    subject_id: Optional[str] = None
     topic_id: Optional[str] = None
     session_id: Optional[str] = None
     message: str = Field(..., min_length=1, max_length=2000)

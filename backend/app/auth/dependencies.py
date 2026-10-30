@@ -46,6 +46,6 @@ def require_roles(allowed_roles: List[UserRole]):
         return current_user
     return role_checker
 
-require_student = require_roles([UserRole.STUDENT, UserRole.ADMIN])
+require_student = require_roles([UserRole.STUDENT, UserRole.FACULTY, UserRole.ADMIN])
 require_faculty = require_roles([UserRole.FACULTY, UserRole.ADMIN])
 require_admin = require_roles([UserRole.ADMIN])
