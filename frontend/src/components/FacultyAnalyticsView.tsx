@@ -18,12 +18,13 @@ import {
   BookOpen, 
   CheckCircle2, 
   ChevronRight, 
-  RotateCw
+  RotateCw,
+  TrendingUp
 } from 'lucide-react';
 
 
 export const FacultyAnalyticsView: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'topics' | 'students' | 'interventions'>('interventions');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'topics' | 'students' | 'interventions' | 'strengths'>('interventions');
   const [overview, setOverview] = useState<ClassOverview | null>(null);
   const [topics, setTopics] = useState<TopicAnalyticsItem[]>([]);
   const [students, setStudents] = useState<StudentAnalyticsSummary[]>([]);
@@ -70,6 +71,21 @@ export const FacultyAnalyticsView: React.FC = () => {
     }
   };
 
+  const studentsWithStrengths = students.filter((student) => student.strong_topics?.length > 0);
+
+  const performanceBadge = (student: StudentAnalyticsSummary) => {
+    const details: Record<string, { label: string; variant: 'success' | 'info' | 'warning' | 'default' }> = {
+      PERFORMING_WELL: { label: 'Performing Well', variant: 'success' },
+      MIXED_PROGRESS: { label: 'Mixed Progress', variant: 'info' },
+      IMPROVING: { label: 'Improving', variant: 'info' },
+      NEEDS_SUPPORT: { label: 'Needs Support', variant: 'warning' },
+      LEARNING: { label: 'Learning', variant: 'default' },
+      NOT_STARTED: { label: 'Not Started', variant: 'default' },
+    };
+    const item = details[student.status] || details.LEARNING;
+    return <Badge variant={item.variant} size="sm">{item.label}</Badge>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Sub Tabs */}
@@ -96,6 +112,17 @@ export const FacultyAnalyticsView: React.FC = () => {
           >
             <Award className="w-3.5 h-3.5" />
             Class KPIs
+          </button>
+          <button
+            onClick={() => setActiveSubTab('strengths')}
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors ${
+              activeSubTab === 'strengths'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            Student Strengths ({studentsWithStrengths.length})
           </button>
           <button
             onClick={() => setActiveSubTab('topics')}
@@ -224,6 +251,7 @@ export const FacultyAnalyticsView: React.FC = () => {
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase">Average Mastery</p>
                     <p className="text-2xl font-bold text-slate-800">{overview.average_mastery.toFixed(1)}%</p>
+                    <p className="text-[10px] text-slate-500">Across attempted topics</p>
                   </div>
                 </Card>
 
@@ -242,10 +270,45 @@ export const FacultyAnalyticsView: React.FC = () => {
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase">Mastered (&ge;80%)</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase">With a Mastered Topic (&ge;80%)</p>
                     <p className="text-2xl font-bold text-slate-800">{overview.students_mastered}</p>
                   </div>
                 </Card>
+              </div>
+
+              {/* Recognize topic-level achievement even when other topics need support. */}
+              <div className="bg-white rounded-xl border border-emerald-200 p-5 shadow-xs space-y-3">
+                <div className="flex flex-wrap gap-2 items-center justify-between">
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600" /> Student Strengths & Achievements
+                  </h3>
+                  <button onClick={() => setActiveSubTab('strengths')} className="text-xs font-semibold text-emerald-700 hover:underline">
+                    View all student strengths
+                  </button>
+                </div>
+                {studentsWithStrengths.length === 0 ? (
+                  <p className="text-xs text-slate-500">No mastered topics yet. Student achievements will appear after assessments.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {studentsWithStrengths.slice(0, 6).map((student) => (
+                      <div key={student.student_id} className="p-3 rounded-lg border border-emerald-100 bg-emerald-50/40 text-xs space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <strong className="text-slate-900">{student.student_name}</strong>
+                          {performanceBadge(student)}
+                        </div>
+                        {student.strong_topics.slice(0, 2).map((topic) => (
+                          <div key={topic.topic_id} className="flex justify-between gap-2">
+                            <span className="text-slate-700">{topic.topic_name}</span>
+                            <strong className="text-emerald-700">{topic.mastery_score.toFixed(1)}%</strong>
+                          </div>
+                        ))}
+                        {student.support_topics.length > 0 && (
+                          <p className="text-amber-800 text-[11px]">Also needs support in {student.support_topics.length} topic(s).</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Topics Requiring Attention */}
@@ -269,6 +332,56 @@ export const FacultyAnalyticsView: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Positive performance is distinct from interventions. */}
+          {activeSubTab === 'strengths' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 text-xs text-emerald-900">
+                <strong>Evidence-based recognition</strong>
+                <p className="mt-1">Students appear here when they have at least one assessed topic with 80% or higher mastery. A student may also need support in other topics.</p>
+              </div>
+              {studentsWithStrengths.length === 0 ? (
+                <div className="rounded-xl bg-white border border-dashed border-slate-300 p-10 text-center text-xs text-slate-500">
+                  No mastered topics yet. Student achievements will appear as assessments are completed.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {studentsWithStrengths.map((student) => (
+                    <div key={student.student_id} className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-sm">{student.student_name}</h3>
+                          <p className="text-xs text-slate-500">{student.department} · {student.attempted_topics} topic(s) attempted</p>
+                        </div>
+                        {performanceBadge(student)}
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-emerald-700">Mastered topics</h4>
+                        {student.strong_topics.map((topic) => (
+                          <div key={topic.topic_id} className="p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-lg flex justify-between gap-3 text-xs">
+                            <span><strong className="text-slate-900">{topic.topic_name}</strong><span className="text-slate-500 block">{topic.subject_name} · {topic.attempts} attempts</span></span>
+                            <strong className="text-emerald-700">{topic.mastery_score.toFixed(1)}%</strong>
+                          </div>
+                        ))}
+                      </div>
+                      {student.support_topics.length > 0 && (
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold text-amber-700">Topics needing support</h4>
+                          {student.support_topics.map((topic) => (
+                            <div key={topic.topic_id} className="text-xs text-slate-700 flex justify-between gap-2">
+                              <span>{topic.topic_name}</span>
+                              <span className="text-amber-700 font-semibold">{topic.mastery_score.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                          <p className="text-[11px] text-slate-500">Recognize progress while offering targeted help for weaker topics.</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -336,6 +449,7 @@ export const FacultyAnalyticsView: React.FC = () => {
                       <th className="px-5 py-3">Department</th>
                       <th className="px-5 py-3">Overall Mastery</th>
                       <th className="px-5 py-3">Attempts (Correct/Incorrect)</th>
+                      <th className="px-5 py-3">Topic Highlights</th>
                       <th className="px-5 py-3">Identified Misconceptions</th>
                       <th className="px-5 py-3">Status</th>
                     </tr>
@@ -352,6 +466,21 @@ export const FacultyAnalyticsView: React.FC = () => {
                         <td className="px-5 py-3.5">
                           {st.total_attempts} (<span className="text-emerald-600">{st.total_correct}</span> / <span className="text-rose-600">{st.total_incorrect}</span>)
                         </td>
+                        <td className="px-5 py-3.5 min-w-44">
+                          {st.attempted_topics === 0 ? (
+                            <span className="text-slate-400">No assessed topics yet</span>
+                          ) : (
+                            <div className="space-y-1">
+                              <span className="text-[11px] text-slate-500">{st.attempted_topics} topic(s) attempted</span>
+                              {st.strong_topics.slice(0, 2).map((topic) => (
+                                <div key={topic.topic_id} className="text-emerald-700 text-[11px]">✓ {topic.topic_name} ({topic.mastery_score.toFixed(0)}%)</div>
+                              ))}
+                              {st.support_topics.slice(0, 2).map((topic) => (
+                                <div key={topic.topic_id} className="text-amber-700 text-[11px]">Needs help: {topic.topic_name} ({topic.mastery_score.toFixed(0)}%)</div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-5 py-3.5 max-w-xs">
                           {st.misconceptions.length === 0 ? (
                             <span className="text-slate-400">None detected</span>
@@ -366,18 +495,7 @@ export const FacultyAnalyticsView: React.FC = () => {
                           )}
                         </td>
                         <td className="px-5 py-3.5">
-                          <Badge
-                            variant={
-                              st.requires_intervention
-                                ? 'warning'
-                                : st.status === 'MASTERED'
-                                ? 'success'
-                                : 'default'
-                            }
-                            size="sm"
-                          >
-                            {st.status}
-                          </Badge>
+                          {performanceBadge(st)}
                         </td>
                       </tr>
                     ))}

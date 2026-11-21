@@ -54,3 +54,35 @@ class AssessmentSubmitResponse(BaseModel):
     attempts: int
     correct_answers: int
     incorrect_answers: int
+
+
+class AssessmentHistoryItem(BaseModel):
+    id: str
+    topic_id: str
+    topic_name: str
+    subject_id: str
+    subject_name: str
+    question_text: str
+    question_type: str
+    difficulty: str
+    options: Optional[List[str]] = None
+    student_answer: str
+    is_correct: bool
+    score: float
+    feedback: str
+    identified_misconception: Optional[str] = None
+    reference_answer: Optional[str] = None
+    correct_option: Optional[str] = None
+    source_quote: Optional[str] = None
+    hint: Optional[str] = None
+    retry_available: bool = False
+    created_at: datetime
+
+
+class AssessmentHistoryPage(BaseModel):
+    items: List[AssessmentHistoryItem]
+    page: int
+    page_size: int
+    total: int
+    correct: int
+    incorrect: int

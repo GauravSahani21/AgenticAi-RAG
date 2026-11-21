@@ -1,11 +1,15 @@
 from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.user import User, UserRole
 from app.models.subject import Subject
 from app.models.topic import Topic
-from app.schemas.auth import UserResponse
+from app.schemas.auth import UserResponse, AdminUserCreate
+from app.auth.security import get_password_hash
+from app.services.institution import normalize_email
+from app.services.deletion import delete_user_records
+from sqlalchemy import func
 from app.auth.dependencies import require_student, require_faculty, require_admin
 
 from datetime import datetime, timezone, timedelta
@@ -107,3 +111,46 @@ def get_all_users(
     current_user: User = Depends(require_admin)
 ):
     return db.query(User).order_by(User.created_at.desc()).all()
+
+
+@router.post("/admin/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_admin_user(
+    user_in: AdminUserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Provision accounts without allowing privileged public self-registration."""
+    email = normalize_email(user_in.email)
+    if db.query(User).filter(func.lower(User.email) == email).first():
+        raise HTTPException(status_code=400, detail="Email is already registered")
+    user = User(
+        name=user_in.name.strip(), email=email,
+        password_hash=get_password_hash(user_in.password),
+        role=user_in.role, department=user_in.department,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/admin/users/{user_id}")
+def delete_admin_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own administrator account")
+    if target.role == UserRole.ADMIN and db.query(User).filter(User.role == UserRole.ADMIN).count() <= 1:
+        raise HTTPException(status_code=400, detail="Cannot delete the last administrator")
+    try:
+        delete_user_records(db, target)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {"message": "User and personal learning records deleted. Faculty courses remain available."}

@@ -36,6 +36,8 @@ export const FacultyDashboard: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null);
+  const [subjectError, setSubjectError] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<'materials' | 'analytics'>('analytics');
 
   // Topic creation & targeted upload state
@@ -110,6 +112,22 @@ export const FacultyDashboard: React.FC = () => {
       setTopicError(err.response?.data?.detail || 'Failed to create topic');
     } finally {
       setCreatingTopic(false);
+    }
+  };
+
+  const handleDeleteSubject = async (subject: Subject) => {
+    if (!window.confirm(
+      `Permanently delete "${subject.name}" (${subject.code})? This also removes its topics, uploaded documents, student assessments and progress. This cannot be undone.`
+    )) return;
+    setDeletingSubjectId(subject.id);
+    setSubjectError(null);
+    try {
+      await curriculumService.deleteSubject(subject.id);
+      await fetchData();
+    } catch (err: any) {
+      setSubjectError(err.response?.data?.detail || 'Could not delete subject.');
+    } finally {
+      setDeletingSubjectId(null);
     }
   };
 
@@ -407,6 +425,9 @@ export const FacultyDashboard: React.FC = () => {
           </form>
         )}
 
+        {subjectError && (
+          <p role="alert" className="mt-4 p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg">{subjectError}</p>
+        )}
         <div className="mt-6 space-y-6">
           {subjects.map((sub) => (
             <div key={sub.id} className="p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
@@ -421,6 +442,17 @@ export const FacultyDashboard: React.FC = () => {
                   <span className="text-xs text-slate-500">
                     {sub.topics?.length || 0} Topics configured
                   </span>
+                  {(overview?.user.role === 'ADMIN' || sub.faculty_id === overview?.user.id) && (
+                    <Button
+                      variant="outline" size="sm"
+                      onClick={() => handleDeleteSubject(sub)}
+                      isLoading={deletingSubjectId === sub.id}
+                      className="flex items-center gap-1 text-xs py-1 px-2.5 text-rose-700 hover:border-rose-300"
+                      title="Delete subject and all related materials and progress"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete Subject
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

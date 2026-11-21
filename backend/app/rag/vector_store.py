@@ -217,7 +217,10 @@ class VectorStore:
 
             results = collection.query(**query_kwargs)
         except Exception as e:
-            logger.warning(f"Filtered vector query failed: {e}. Trying fallback search without where clause.")
+            logger.warning(f"Vector query failed: {e}")
+            # NEVER widen a subject/topic-scoped assessment to other courses.
+            if where_filter:
+                return []
             try:
                 results = collection.query(
                     query_texts=[query],

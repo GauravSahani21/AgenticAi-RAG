@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Topic, GeneratedQuestion, AssessmentSubmitResponse } from '../types';
 import { assessmentService } from '../services/api';
 import { Button } from './Button';
@@ -20,13 +20,15 @@ interface AssessmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAssessmentCompleted?: () => void;
+  initialQuestion?: GeneratedQuestion | null;
 }
 
 export const AssessmentModal: React.FC<AssessmentModalProps> = ({
   topic,
   isOpen,
   onClose,
-  onAssessmentCompleted
+  onAssessmentCompleted,
+  initialQuestion
 }) => {
   const [selectedType, setSelectedType] = useState<string>('CONCEPTUAL');
   const [question, setQuestion] = useState<GeneratedQuestion | null>(null);
@@ -35,9 +37,14 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
   const [evaluating, setEvaluating] = useState<boolean>(false);
   const [result, setResult] = useState<AssessmentSubmitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Prevent an older, slow API response from replacing a newer question.
+  const requestSequence = useRef(0);
+  const submissionInProgress = useRef(false);
 
   const fetchQuestion = async (type = selectedType) => {
+    const requestId = ++requestSequence.current;
     setLoading(true);
+    setQuestion(null); // Never show an old/submitted question if a refresh fails.
     setError(null);
     setResult(null);
     setAnswer('');
@@ -47,29 +54,46 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
         difficulty: topic.difficulty,
         question_type: type
       });
-      setQuestion(q);
+      if (requestId === requestSequence.current) setQuestion(q);
     } catch (err: any) {
-      setError('Failed to generate diagnostic question.');
+      if (requestId === requestSequence.current) {
+        setError(err.response?.data?.detail || 'Unable to generate a reliable question for this topic.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (isOpen) {
-      fetchQuestion();
+      if (initialQuestion) {
+        requestSequence.current += 1;
+        setSelectedType(initialQuestion.question_type);
+        setQuestion(initialQuestion);
+        setAnswer('');
+        setResult(null);
+        setError(null);
+        setLoading(false);
+      } else {
+        fetchQuestion();
+      }
+    } else {
+      // Invalidate any outstanding generation responses after closing.
+      requestSequence.current += 1;
     }
-  }, [isOpen, topic.id]);
+  }, [isOpen, topic.id, initialQuestion?.question_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question || !answer.trim()) return;
+    if (!question || !answer.trim() || submissionInProgress.current || loading || result) return;
 
+    submissionInProgress.current = true;
     setEvaluating(true);
     setError(null);
     try {
       const res = await assessmentService.submitAssessment({
         topic_id: topic.id,
+        question_id: question.question_id,
         question_text: question.question_text,
         question_type: question.question_type,
         difficulty: question.difficulty,
@@ -80,8 +104,14 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
         onAssessmentCompleted();
       }
     } catch (err: any) {
-      setError('Evaluation service encountered an error.');
+      if (err.response?.status === 409) {
+        // The question was already graded by the server. Fetch a fresh ID.
+        await fetchQuestion();
+      } else {
+        setError(err.response?.data?.detail || 'Evaluation service encountered an error.');
+      }
     } finally {
+      submissionInProgress.current = false;
       setEvaluating(false);
     }
   };
@@ -122,6 +152,7 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
             {['CONCEPTUAL', 'SHORT_ANSWER', 'MCQ', 'APPLICATION', 'SCENARIO'].map((t) => (
               <button
                 key={t}
+                disabled={evaluating}
                 onClick={() => {
                   setSelectedType(t);
                   fetchQuestion(t);
@@ -221,6 +252,7 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                       type="button"
                       variant="outline"
                       size="sm"
+                      disabled={loading || evaluating}
                       onClick={() => fetchQuestion()}
                     >
                       <RotateCw className="w-3.5 h-3.5 mr-1" />
@@ -230,7 +262,7 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                       type="submit"
                       variant="primary"
                       size="sm"
-                      disabled={evaluating || !answer.trim()}
+                      disabled={loading || evaluating || !answer.trim()}
                     >
                       {evaluating ? (
                         <>
@@ -324,6 +356,8 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={loading || evaluating}
+                      disabled={loading || evaluating}
                       onClick={() => fetchQuestion()}
                     >
                       Practice Next Question
@@ -339,7 +373,11 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                 </div>
               )}
             </div>
-          ) : null}
+          ) : (
+            <div className="text-sm text-slate-600 text-center py-5">
+              No question available. Try another format or ask your faculty to upload more detailed topic notes.
+            </div>
+          )}
         </div>
       </div>
     </div>

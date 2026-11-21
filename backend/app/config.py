@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/adaptivelearn")
     
+    # Local demo accounts should never be provisioned in production.
+    SEED_DEMO_DATA: bool = True
+
     # JWT Authentication
     JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-adaptivelearn-jwt-key-2026")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
@@ -24,7 +27,11 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     DOCUMENTS_DIRECTORY: str = os.getenv("DOCUMENTS_DIRECTORY", "./documents")
 
-    # AI Configuration (OpenRouter)
+    # AI Configuration (Groq for assessments, otherwise OpenRouter)
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+
+    # OpenRouter
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
     OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
     OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")

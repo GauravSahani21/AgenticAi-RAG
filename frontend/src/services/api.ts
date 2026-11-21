@@ -74,6 +74,14 @@ export const dashboardService = {
     return response.data;
   },
 
+  createAdminUser: async (data: {name: string; email: string; password: string; role: string; department?: string}): Promise<User> => {
+    const response = await api.post<User>('/api/admin/users', data);
+    return response.data;
+  },
+  deleteAdminUser: async (id: string): Promise<void> => {
+    await api.delete(`/api/admin/users/${id}`);
+  },
+
   getAdminUsers: async (): Promise<User[]> => {
     const response = await api.get<User[]>('/api/admin/users');
     return response.data;
@@ -91,6 +99,10 @@ export const curriculumService = {
       params: subjectId ? { subject_id: subjectId } : undefined,
     });
     return response.data;
+  },
+
+  deleteSubject: async (id: string): Promise<void> => {
+    await api.delete(`/api/subjects/${id}`);
   },
 
   createSubject: async (name: string, code: string): Promise<Subject> => {
@@ -195,9 +207,27 @@ export const tutorService = {
   },
 };
 
-import type { LearningState, GeneratedQuestion, AssessmentSubmitResponse } from '../types';
+import type { LearningState, GeneratedQuestion, AssessmentSubmitResponse, AssessmentHistoryPage } from '../types';
 
 export const assessmentService = {
+  getHistory: async (params: {
+    subject_id?: string;
+    topic_id?: string;
+    result?: 'all' | 'correct' | 'incorrect';
+    question_type?: string;
+    page?: number;
+    page_size?: number;
+  } = {}): Promise<AssessmentHistoryPage> => {
+    const response = await api.get<AssessmentHistoryPage>('/api/assessment/history', { params });
+    return response.data;
+  },
+
+  retryHistoryQuestion: async (assessmentId: string): Promise<GeneratedQuestion> => {
+    const response = await api.post<GeneratedQuestion>(
+      `/api/assessment/history/${encodeURIComponent(assessmentId)}/retry`
+    );
+    return response.data;
+  },
   getState: async (topicId: string): Promise<LearningState> => {
     const response = await api.get<LearningState>(`/api/assessment/state/${topicId}`);
     return response.data;
@@ -219,6 +249,7 @@ export const assessmentService = {
 
   submitAssessment: async (data: {
     topic_id: string;
+    question_id: string;
     question_text: string;
     question_type: string;
     difficulty: string;

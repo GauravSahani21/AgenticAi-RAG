@@ -210,6 +210,14 @@ export interface TopicAnalyticsItem {
   average_attempts: number;
 }
 
+export interface StudentTopicHighlight {
+  topic_id: string;
+  topic_name: string;
+  subject_name: string;
+  mastery_score: number;
+  attempts: number;
+}
+
 export interface StudentAnalyticsSummary {
   student_id: string;
   student_name: string;
@@ -222,6 +230,9 @@ export interface StudentAnalyticsSummary {
   misconceptions: string[];
   status: string;
   requires_intervention: boolean;
+  attempted_topics: number;
+  strong_topics: StudentTopicHighlight[];
+  support_topics: StudentTopicHighlight[];
 }
 
 export interface InterventionItem {
@@ -243,3 +254,36 @@ export interface InterventionItem {
 
 
 
+
+
+export interface AssessmentHistoryItem {
+  id: string;
+  subject_id: string;
+  subject_name: string;
+  topic_id: string;
+  topic_name: string;
+  question_text: string;
+  question_type: string;
+  difficulty: string;
+  options?: string[] | null;
+  student_answer: string;
+  is_correct: boolean;
+  score: number;
+  feedback: string;
+  identified_misconception?: string | null;
+  reference_answer?: string | null;
+  correct_option?: string | null;
+  source_quote?: string | null;
+  hint?: string | null;
+  retry_available: boolean;
+  created_at: string;
+}
+
+export interface AssessmentHistoryPage {
+  items: AssessmentHistoryItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  correct: number;
+  incorrect: number;
+}

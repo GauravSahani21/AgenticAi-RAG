@@ -8,10 +8,12 @@ from app.models.interaction import Interaction
 from app.models.learning_state import LearningState
 from app.models.assessment import Assessment
 from app.models.intervention import Intervention
+from app.models.generated_question import GeneratedQuestion
+from app.models.assessment_review import AssessmentReview
 
 __all__ = [
     "Base", "User", "UserRole", "Subject", "Topic", "Document",
-    "LearningSession", "Interaction", "LearningState", "Assessment", "Intervention"
+    "LearningSession", "Interaction", "LearningState", "Assessment", "Intervention", "GeneratedQuestion", "AssessmentReview"
 ]
 
 

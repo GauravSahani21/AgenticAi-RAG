@@ -14,6 +14,7 @@ from app.schemas.analytics import (
     ClassOverviewResponse,
     TopicAnalyticsItem,
     StudentAnalyticsSummary,
+    StudentTopicHighlight,
     InterventionResponse,
     InterventionStatusUpdateRequest
 )
@@ -40,10 +41,10 @@ def get_class_overview(
     total_students = db.query(User).filter(User.role == UserRole.STUDENT).count()
 
     # Active students (with at least 1 learning state or interaction)
-    active_students = db.query(func.count(func.distinct(LearningState.student_id))).scalar() or 0
+    active_students = db.query(func.count(func.distinct(LearningState.student_id))).filter(LearningState.attempts > 0).scalar() or 0
 
     # Average mastery across all learning states
-    avg_mastery = db.query(func.avg(LearningState.mastery_score)).scalar() or 0.0
+    avg_mastery = db.query(func.avg(LearningState.mastery_score)).filter(LearningState.attempts > 0).scalar() or 0.0
 
     # Students struggling (mastery < 50% on at least one attempted topic)
     struggling_count = db.query(func.count(func.distinct(LearningState.student_id))).filter(
@@ -53,14 +54,15 @@ def get_class_overview(
 
     # Students mastered (mastery >= 80%)
     mastered_count = db.query(func.count(func.distinct(LearningState.student_id))).filter(
-        LearningState.mastery_score >= 80.0
+        LearningState.mastery_score >= 80.0,
+        LearningState.attempts > 0
     ).scalar() or 0
 
     # Topics requiring attention (lowest avg mastery or most struggles)
     topics = db.query(Topic).all()
     topic_summary = []
     for t in topics:
-        states = db.query(LearningState).filter(LearningState.topic_id == t.id).all()
+        states = db.query(LearningState).filter(LearningState.topic_id == t.id, LearningState.attempts > 0).all()
         if states:
             avg_m = sum(s.mastery_score for s in states) / len(states)
             struggles = sum(1 for s in states if s.mastery_score < 50.0)
@@ -92,7 +94,7 @@ def get_topic_analytics(
     topics = db.query(Topic).all()
     results = []
     for t in topics:
-        states = db.query(LearningState).filter(LearningState.topic_id == t.id).all()
+        states = db.query(LearningState).filter(LearningState.topic_id == t.id, LearningState.attempts > 0).all()
         if states:
             avg_m = sum(s.mastery_score for s in states) / len(states)
             struggles = sum(1 for s in states if s.mastery_score < 50.0)
@@ -129,34 +131,66 @@ def get_student_analytics(
     students = db.query(User).filter(User.role == UserRole.STUDENT).all()
     summaries = []
     for st in students:
-        states = db.query(LearningState).filter(LearningState.student_id == st.id).all()
-        if states:
-            overall_m = sum(s.mastery_score for s in states) / len(states)
-            total_att = sum(s.attempts for s in states)
-            total_c = sum(s.correct_answers for s in states)
-            total_inc = sum(s.incorrect_answers for s in states)
-            all_misc = []
-            for s in states:
-                try:
-                    all_misc.extend(json.loads(s.misconceptions))
-                except Exception:
-                    pass
-            # Unique misconceptions
-            all_misc = list(set(all_misc))
-            status_val = "INTERVENTION_REQUIRED" if any(s.status == "INTERVENTION_REQUIRED" for s in states) else (
-                "STRUGGLING" if any(s.status == "STRUGGLING" for s in states) else (
-                    "MASTERED" if all(s.status == "MASTERED" for s in states) else "LEARNING"
-                )
+        # Only assessed topics contribute to overall mastery. A newly enrolled topic
+        # is not evidence that a student is struggling.
+        states = db.query(LearningState).filter(
+            LearningState.student_id == st.id,
+            LearningState.attempts > 0
+        ).all()
+
+        overall_m = sum(s.mastery_score for s in states) / len(states) if states else 0.0
+        total_att = sum(s.attempts for s in states)
+        total_c = sum(s.correct_answers for s in states)
+        total_inc = sum(s.incorrect_answers for s in states)
+        misconceptions = set()
+        for state in states:
+            try:
+                items = json.loads(state.misconceptions or "[]")
+                if isinstance(items, list):
+                    misconceptions.update(x for x in items if isinstance(x, str) and x.strip())
+            except (ValueError, TypeError):
+                pass
+
+        def topic_highlight(state: LearningState) -> StudentTopicHighlight:
+            topic = state.topic
+            return StudentTopicHighlight(
+                topic_id=state.topic_id,
+                topic_name=topic.name if topic else "Unknown topic",
+                subject_name=topic.subject.name if (topic and topic.subject) else "General",
+                mastery_score=round(state.mastery_score, 1),
+                attempts=state.attempts,
             )
-            needs_interv = any(s.status in ["STRUGGLING", "INTERVENTION_REQUIRED"] for s in states)
-        else:
-            overall_m = 0.0
-            total_att = 0
-            total_c = 0
-            total_inc = 0
-            all_misc = []
+
+        strong = sorted(
+            (topic_highlight(state) for state in states if state.mastery_score >= 80.0),
+            key=lambda item: (-item.mastery_score, item.topic_name)
+        )
+        weak = sorted(
+            (topic_highlight(state) for state in states if state.mastery_score < 50.0),
+            key=lambda item: (item.mastery_score, item.topic_name)
+        )
+
+        # Distinguish per-topic achievement from overall class performance.
+        # A learner may have both strong and weak topics at the same time.
+        if not states:
             status_val = "NOT_STARTED"
-            needs_interv = False
+        elif strong and weak:
+            status_val = "MIXED_PROGRESS"
+        elif weak:
+            status_val = "NEEDS_SUPPORT"
+        elif len(strong) == len(states):
+            status_val = "PERFORMING_WELL"
+        elif any(state.status == "IMPROVING" for state in states):
+            status_val = "IMPROVING"
+        else:
+            status_val = "LEARNING"
+
+        # Keep intervention flags separate from achievements; one strong topic
+        # never cancels a genuine need for assistance in another topic.
+        needs_interv = any(
+            state.mastery_score < 50.0 and state.status in ("STRUGGLING", "INTERVENTION_REQUIRED")
+            for state in states
+        )
 
         summaries.append(StudentAnalyticsSummary(
             student_id=st.id,
@@ -167,9 +201,12 @@ def get_student_analytics(
             total_attempts=total_att,
             total_correct=total_c,
             total_incorrect=total_inc,
-            misconceptions=all_misc,
+            misconceptions=sorted(misconceptions),
             status=status_val,
-            requires_intervention=needs_interv
+            requires_intervention=needs_interv,
+            attempted_topics=len(states),
+            strong_topics=strong,
+            support_topics=weak,
         ))
     return summaries
 

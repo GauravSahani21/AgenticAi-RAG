@@ -11,6 +11,8 @@ from app.models.topic import Topic
 from app.models.document import Document
 from app.models.session import LearningSession
 from app.models.interaction import Interaction
+from app.models.generated_question import GeneratedQuestion
+from app.models.assessment_review import AssessmentReview  # register review snapshots for create_all
 from app.auth.security import get_password_hash
 from app.api import auth, subjects, topics, dashboard, documents, rag, tutor, assessment, faculty_analytics
 
@@ -109,12 +111,21 @@ def seed_initial_data():
 async def lifespan(app: FastAPI):
     logger.info("Initializing database tables...")
     Base.metadata.create_all(bind=engine)
-    seed_initial_data()
-    try:
-        from app.seed_sample_materials import seed_sample_course_content
-        seed_sample_course_content()
-    except Exception as se:
-        logger.warning(f"Could not automatically seed sample materials: {se}")
+    # Seed only on a genuinely empty local development database. Deleted subjects,
+    # documents and users must never be recreated on subsequent restarts.
+    if settings.SEED_DEMO_DATA and settings.ENVIRONMENT == "development":
+        db = SessionLocal()
+        try:
+            needs_seed = db.query(User).count() == 0
+        finally:
+            db.close()
+        if needs_seed:
+            seed_initial_data()
+            try:
+                from app.seed_sample_materials import seed_sample_course_content
+                seed_sample_course_content()
+            except Exception as se:
+                logger.warning("Could not seed initial sample materials: %s", se)
     yield
 
 
@@ -128,7 +139,7 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

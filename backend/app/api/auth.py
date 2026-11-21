@@ -1,17 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.auth import UserRegister, UserLogin, TokenResponse, UserResponse
 from app.auth.security import get_password_hash, verify_password, create_access_token
 from app.auth.dependencies import get_current_user
+from app.services.institution import normalize_email
+from sqlalchemy import func
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserRegister, db: Session = Depends(get_db)):
-    # Check if user already exists
-    existing = db.query(User).filter(User.email == user_in.email).first()
+    # Public registration NEVER allows self-assignment of faculty/admin privileges.
+    if user_in.role != UserRole.STUDENT:
+        raise HTTPException(status_code=403, detail="Only student accounts can self-register. Ask an administrator to create faculty or admin accounts.")
+    email = normalize_email(user_in.email)
+    existing = db.query(User).filter(func.lower(User.email) == email).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -22,9 +27,9 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
     hashed_pwd = get_password_hash(user_in.password)
     user = User(
         name=user_in.name,
-        email=user_in.email,
+        email=email,
         password_hash=hashed_pwd,
-        role=user_in.role,
+        role=UserRole.STUDENT,
         department=user_in.department,
     )
     db.add(user)
@@ -41,7 +46,7 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == credentials.email).first()
+    user = db.query(User).filter(func.lower(User.email) == str(credentials.email).lower()).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -50,8 +55,6 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
         )
     
     is_valid = verify_password(credentials.password, user.password_hash)
-    if not is_valid and credentials.password.lower() in ("password123", "password123!"):
-        is_valid = verify_password("Password123!", user.password_hash) or verify_password("password123", user.password_hash)
 
     if not is_valid:
         raise HTTPException(

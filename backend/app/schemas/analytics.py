@@ -23,6 +23,14 @@ class TopicAnalyticsItem(BaseModel):
     total_attempts: int
     average_attempts: float
 
+class StudentTopicHighlight(BaseModel):
+    topic_id: str
+    topic_name: str
+    subject_name: str
+    mastery_score: float
+    attempts: int
+
+
 class StudentAnalyticsSummary(BaseModel):
     student_id: str
     student_name: str
@@ -35,6 +43,9 @@ class StudentAnalyticsSummary(BaseModel):
     misconceptions: List[str] = []
     status: str
     requires_intervention: bool
+    attempted_topics: int = 0
+    strong_topics: List[StudentTopicHighlight] = Field(default_factory=list)
+    support_topics: List[StudentTopicHighlight] = Field(default_factory=list)
 
 class InterventionResponse(BaseModel):
     id: str
