@@ -27,67 +27,80 @@ async def tutor_chat(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student)
 ):
-    # 1. Validate Subject exists or resolve from topic
+    # 1. Resolve and verify course/topic scope before retrieval or session creation.
     subject_id = request.subject_id
     topic = None
     if request.topic_id:
         topic = db.query(Topic).filter(Topic.id == request.topic_id).first()
-        if topic and not subject_id:
-            subject_id = topic.subject_id
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
+        if subject_id and subject_id != topic.subject_id:
+            raise HTTPException(
+                status_code=400, detail="Selected topic does not belong to the subject"
+            )
+        subject_id = topic.subject_id
 
     if not subject_id:
-        first_sub = db.query(Subject).first()
-        if first_sub:
-            subject_id = first_sub.id
-        else:
-            raise HTTPException(status_code=404, detail="No academic subjects found")
-
+        raise HTTPException(status_code=400, detail="Select a subject before chatting")
     subject = db.query(Subject).filter(Subject.id == subject_id).first()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
-    # 2. Retrieve or create session
+    # 2. Never silently re-use a session from a different course/topic.
     session = None
     if request.session_id:
         session = db.query(LearningSession).filter(
             LearningSession.id == request.session_id,
-            LearningSession.student_id == current_user.id
+            LearningSession.student_id == current_user.id,
         ).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Learning session not found")
+        if session.subject_id != subject_id or session.topic_id != request.topic_id:
+            raise HTTPException(
+                status_code=400,
+                detail="This conversation belongs to another subject or topic. Start a new chat.",
+            )
 
     if not session:
         session = LearningSession(
             student_id=current_user.id,
             subject_id=subject_id,
-            topic_id=request.topic_id
+            topic_id=request.topic_id,
         )
         db.add(session)
         db.commit()
         db.refresh(session)
 
-    # 3. Retrieve Academic Chunks via RAG
-    rag_chunks = vector_store.search(
-        query=request.message,
-        subject_id=subject_id,
-        topic_id=request.topic_id,
-        top_k=4
-    )
-
-    # 4. Fetch prior turns for context
+    # 3. Read recent interactions first to resolve conversational follow-ups.
     past_interactions = db.query(Interaction).filter(
         Interaction.session_id == session.id
     ).order_by(Interaction.created_at.asc()).all()
-
     chat_history = []
     for pi in past_interactions[-6:]:
+        chat_history.append({"role": "user", "content": pi.student_message})
         chat_history.append({
-            "role": "user",
-            "content": pi.student_message
+            "role": "assistant", "content": pi.ai_response,
+            "action": pi.agent_action,
         })
-        chat_history.append({
-            "role": "assistant",
-            "content": pi.ai_response,
-            "action": pi.agent_action
-        })
+
+    # RAG retrieval is scoped by subject AND optionally topic. It never searches
+    # unrelated courses if retrieval within this scope has no matches.
+    retrieval_query = request.message
+    short_followups = (
+        "more", "explain again", "another example", "give an example",
+        "can you explain that", "elaborate", "tell me more", "why",
+    )
+    if request.message.strip().lower().rstrip("?!. ") in short_followups:
+        for previous in reversed(past_interactions):
+            if previous.student_message.strip():
+                retrieval_query = f"{previous.student_message} {request.message}"
+                break
+    rag_chunks = vector_store.search(
+        query=retrieval_query,
+        subject_id=subject_id,
+        topic_id=request.topic_id,
+        top_k=5,
+    )
 
     # 5. Generate Agentic Tutor Response
     ai_result = await run_agentic_tutor_loop(
@@ -96,7 +109,8 @@ async def tutor_chat(
         topic_name=topic.name if topic else None,
         rag_chunks=rag_chunks,
         chat_history=chat_history,
-        proficiency_hint=request.student_proficiency
+        proficiency_hint=request.student_proficiency,
+        retrieval_query=retrieval_query,
     )
 
     # 6. Save Interaction to Database

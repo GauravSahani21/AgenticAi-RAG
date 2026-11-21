@@ -41,8 +41,16 @@ export const TutorChat: React.FC<TutorChatProps> = ({
 
   // Sync props if parent changes selected subject/topic
   useEffect(() => {
-    if (initialSubjectId) setSelectedSubjectId(initialSubjectId);
-    if (initialTopicId) setSelectedTopicId(initialTopicId);
+    if (initialSubjectId) {
+      setSelectedSubjectId(initialSubjectId);
+      setSelectedTopicId(initialTopicId || '');
+      setSessionId(null);
+      setMessages([]);
+    } else if (initialTopicId) {
+      setSelectedTopicId(initialTopicId);
+      setSessionId(null);
+      setMessages([]);
+    }
   }, [initialSubjectId, initialTopicId]);
 
   // Initial welcome message
@@ -120,11 +128,12 @@ export const TutorChat: React.FC<TutorChatProps> = ({
     }
   };
 
+  const focus = currentTopic?.name || currentSubject?.name || 'this course';
   const quickPrompts = [
-    'What is an embedding?',
-    'How does cosine similarity measure semantic distance?',
-    'What graph algorithm does ChromaDB use for indexing?',
-    'Explain how document chunking works in RAG',
+    `Explain ${focus}`,
+    `Give a practical example of ${focus}`,
+    `What are the main ideas in ${focus}?`,
+    `Help me revise ${focus}`,
   ];
 
   return (

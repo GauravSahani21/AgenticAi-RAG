@@ -1,19 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import type { UserRole } from '../types';
 import { Button } from '../components/Button';
 import { Logo } from '../components/Logo';
 import {
-  GraduationCap,
   AlertCircle,
   User,
   Mail,
   Lock,
   Building,
   ArrowRight,
-  Shield,
-  BookOpen
 } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
@@ -23,7 +19,6 @@ export const RegisterPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('STUDENT');
   const [department, setDepartment] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,7 +39,7 @@ export const RegisterPage: React.FC = () => {
         name,
         email,
         password,
-        role,
+        role: 'STUDENT',
         department: department.trim() ? department : undefined,
       });
       const route = getDashboardRoute(user.role);
@@ -72,7 +67,7 @@ export const RegisterPage: React.FC = () => {
           <div className="mb-6">
             <h2 className="text-base font-semibold text-zinc-900">Create your account</h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Register as a student, faculty member, or institutional administrator
+              Create your student account using any valid email address
             </p>
           </div>
 
@@ -109,7 +104,7 @@ export const RegisterPage: React.FC = () => {
 
             <div>
               <label htmlFor="email" className="block text-xs font-medium text-zinc-700 mb-1.5">
-                Institutional Email
+                Email Address
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
@@ -121,7 +116,7 @@ export const RegisterPage: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  placeholder="name@university.edu"
+                  placeholder="name@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 transition-colors"
@@ -151,48 +146,8 @@ export const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label htmlFor="role" className="block text-xs font-medium text-zinc-700 mb-1.5">
-                Institutional Role
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRole('STUDENT')}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all ${
-                    role === 'STUDENT'
-                      ? 'border-zinc-900 bg-zinc-900 text-white'
-                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-                  }`}
-                >
-                  <GraduationCap className="w-4 h-4" />
-                  <span>Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('FACULTY')}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all ${
-                    role === 'FACULTY'
-                      ? 'border-zinc-900 bg-zinc-900 text-white'
-                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-                  }`}
-                >
-                  <BookOpen className="w-4 h-4" />
-                  <span>Faculty</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('ADMIN')}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-all ${
-                    role === 'ADMIN'
-                      ? 'border-zinc-900 bg-zinc-900 text-white'
-                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-                  }`}
-                >
-                  <Shield className="w-4 h-4" />
-                  <span>Admin</span>
-                </button>
-              </div>
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-900">
+              Registering as <strong>Student</strong>. Faculty and administrator accounts are created by existing administrators.
             </div>
 
             <div>

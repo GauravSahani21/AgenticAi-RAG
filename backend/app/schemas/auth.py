@@ -10,6 +10,10 @@ class UserRegister(BaseModel):
     role: UserRole = UserRole.STUDENT
     department: Optional[str] = Field(None, max_length=100)
 
+class AdminUserCreate(UserRegister):
+    """Only accessible via an authenticated administrator endpoint."""
+    pass
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str

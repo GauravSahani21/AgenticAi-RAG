@@ -1,5 +1,6 @@
 import json
-from typing import List, Optional
+from typing import List, Optional, Literal
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
@@ -7,19 +8,20 @@ from app.models.user import User
 from app.models.topic import Topic
 from app.models.learning_state import LearningState
 from app.models.assessment import Assessment
+from app.models.generated_question import GeneratedQuestion
+from app.models.assessment_review import AssessmentReview
+from app.models.subject import Subject
 from app.schemas.assessment import (
     LearningStateResponse,
     QuestionGenerateRequest,
     GeneratedQuestionResponse,
     AssessmentSubmitRequest,
-    AssessmentSubmitResponse
+    AssessmentSubmitResponse, AssessmentHistoryItem, AssessmentHistoryPage
 )
-from app.auth.dependencies import require_student
-from app.ai.assessment import (
-    generate_assessment_question,
-    evaluate_student_answer,
-    calculate_updated_mastery
-)
+from app.auth.dependencies import require_student, require_roles
+from app.models.user import UserRole
+from app.ai.assessment import calculate_updated_mastery
+from app.ai.question_generation import generate_grounded_question, grade_grounded_answer
 from app.rag.vector_store import vector_store
 
 router = APIRouter(prefix="/api/assessment", tags=["Assessment & Learning State"])
@@ -112,35 +114,56 @@ def get_all_learning_states(
     return results
 
 @router.post("/generate", response_model=GeneratedQuestionResponse)
-def generate_question_endpoint(
+async def generate_question_endpoint(
     request: QuestionGenerateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_student)
+    current_user: User = Depends(require_student),
 ):
     topic = db.query(Topic).filter(Topic.id == request.topic_id).first()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
-
-    difficulty = request.difficulty or topic.difficulty or "INTERMEDIATE"
-    rag_chunks = vector_store.search(query=topic.name, topic_id=topic.id, top_k=2)
-
-    q_data = generate_assessment_question(
-        topic_name=topic.name,
-        difficulty=difficulty,
-        question_type=request.question_type,
-        rag_chunks=rag_chunks
+    difficulty = (request.difficulty or topic.difficulty or "INTERMEDIATE").upper()
+    requested_type = (request.question_type or "CONCEPTUAL").upper()
+    # First restrict to the requested topic; then include only the same subject
+    # if faculty uploaded documents at subject level rather than topic level.
+    chunks = vector_store.search(
+        query=f"{topic.name} {topic.description or ''}",
+        subject_id=topic.subject_id, topic_id=topic.id, top_k=6,
     )
-
+    if not chunks:
+        chunks = vector_store.search(
+            query=f"{topic.name} {topic.description or ''}",
+            subject_id=topic.subject_id, top_k=6,
+        )
+    chunks = [c for c in chunks if c.get("similarity_score", 0) >= 0.06 and c.get("content", "").strip()]
+    if not chunks:
+        raise HTTPException(status_code=422, detail="No relevant approved course materials found. Ask faculty to upload study material for this topic.")
+    recent = [q.question_text for q in db.query(GeneratedQuestion).filter(
+        GeneratedQuestion.student_id == current_user.id,
+        GeneratedQuestion.topic_id == topic.id,
+    ).order_by(GeneratedQuestion.created_at.desc()).limit(12).all()]
+    try:
+        data = await generate_grounded_question(topic.name, difficulty, requested_type, chunks, recent)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    generated = GeneratedQuestion(
+        student_id=current_user.id, topic_id=topic.id,
+        question_text=data["question_text"], question_type=data["question_type"],
+        difficulty=data["difficulty"],
+        options_json=json.dumps(data.get("options")) if data.get("options") else None,
+        correct_option=data.get("correct_option"),
+        reference_answer=data["reference_answer"], source_quote=data["source_quote"],
+        hint=data.get("hint"),
+    )
+    db.add(generated)
+    db.commit()
+    db.refresh(generated)
     return GeneratedQuestionResponse(
-        question_id=q_data["question_id"],
-        topic_id=topic.id,
-        topic_name=topic.name,
-        question_text=q_data["question_text"],
-        question_type=q_data["question_type"],
-        difficulty=q_data["difficulty"],
-        options=q_data.get("options"),
-        hint=q_data.get("hint")
+        question_id=generated.id, topic_id=topic.id, topic_name=topic.name,
+        question_text=generated.question_text, question_type=generated.question_type,
+        difficulty=generated.difficulty, options=data.get("options"), hint=generated.hint,
     )
+
 
 @router.post("/submit", response_model=AssessmentSubmitResponse)
 def submit_assessment_endpoint(
@@ -152,15 +175,28 @@ def submit_assessment_endpoint(
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
 
+    # Never trust question text, answer keys or difficulty supplied by a browser.
+    if not request.question_id:
+        raise HTTPException(status_code=400, detail="Question ID required. Generate a new question before submitting.")
+    question = db.query(GeneratedQuestion).filter(
+        GeneratedQuestion.id == request.question_id,
+        GeneratedQuestion.student_id == current_user.id,
+        GeneratedQuestion.topic_id == topic.id,
+    ).first()
+    if question is None:
+        raise HTTPException(status_code=404, detail="Generated question not found for this student/topic")
+    if question.answered_at is not None:
+        raise HTTPException(status_code=409, detail="Question already submitted; generate a new one")
+
     # 1. Fetch or create learning state
     state = db.query(LearningState).filter(
         LearningState.student_id == current_user.id,
         LearningState.topic_id == topic.id
     ).first()
 
-    diff_val = request.difficulty or topic.difficulty or "INTERMEDIATE"
-    q_type = request.question_type or "CONCEPTUAL"
-    q_text = request.question_text or f"Diagnostic question on {topic.name}"
+    diff_val = question.difficulty
+    q_type = question.question_type
+    q_text = question.question_text
 
     if not state:
         state = LearningState(
@@ -182,12 +218,17 @@ def submit_assessment_endpoint(
     previous_mastery = state.mastery_score
 
     # 2. Evaluate answer
-    eval_result = evaluate_student_answer(
-        question_text=q_text,
-        question_type=q_type,
-        student_answer=request.student_answer,
-        topic_name=topic.name
-    )
+    try:
+        eval_result = grade_grounded_answer(
+            student_answer=request.student_answer,
+            reference_answer=question.reference_answer,
+            question_type=q_type, correct_option=question.correct_option,
+            question_text=question.question_text, source_quote=question.source_quote,
+            options=_parse_options(question.options_json),
+        )
+    except ValueError as exc:
+        # Uncertain grading must never decrement mastery or consume an attempt.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     is_correct = eval_result["is_correct"]
     score = eval_result["score"]
@@ -242,6 +283,17 @@ def submit_assessment_endpoint(
         identified_misconception=misconception
     )
     db.add(assessment)
+    db.flush()  # Ensure the attempt has an ID before saving its review key.
+    db.add(AssessmentReview(
+        assessment_id=assessment.id,
+        generated_question_id=question.id,
+        options_json=question.options_json,
+        correct_option=question.correct_option,
+        reference_answer=question.reference_answer,
+        source_quote=question.source_quote,
+        hint=question.hint,
+    ))
+    question.answered_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(assessment)
 
@@ -257,4 +309,122 @@ def submit_assessment_endpoint(
         attempts=state.attempts,
         correct_answers=state.correct_answers,
         incorrect_answers=state.incorrect_answers
+    )
+
+
+def _find_review_key(db: Session, assessment: Assessment) -> Optional[AssessmentReview | GeneratedQuestion]:
+    """Use immutable snapshots, or a uniquely matching legacy generated question.
+
+    Never guess a key when older questions were generated more than once with
+    different options/answers. Such attempts still display their stored result.
+    """
+    saved = db.query(AssessmentReview).filter(AssessmentReview.assessment_id == assessment.id).first()
+    if saved is not None:
+        return saved
+    matches = db.query(GeneratedQuestion).filter(
+        GeneratedQuestion.student_id == assessment.student_id,
+        GeneratedQuestion.topic_id == assessment.topic_id,
+        GeneratedQuestion.question_text == assessment.question_text,
+    ).limit(2).all()
+    return matches[0] if len(matches) == 1 and matches[0].answered_at is not None else None
+
+
+def _parse_options(options_json: Optional[str]) -> Optional[List[str]]:
+    if not options_json:
+        return None
+    try:
+        data = json.loads(options_json)
+        return data if isinstance(data, list) and all(isinstance(v, str) for v in data) else None
+    except (ValueError, TypeError):
+        return None
+
+
+@router.get("/history", response_model=AssessmentHistoryPage)
+def list_assessment_history(
+    subject_id: Optional[str] = None,
+    topic_id: Optional[str] = None,
+    result: Literal["all", "correct", "incorrect"] = "all",
+    question_type: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STUDENT])),
+):
+    if page < 1 or not (1 <= page_size <= 50):
+        raise HTTPException(status_code=422, detail="page must be positive and page_size between 1 and 50")
+    base = db.query(Assessment).join(Topic, Assessment.topic_id == Topic.id).filter(
+        Assessment.student_id == current_user.id,
+    )
+    if subject_id:
+        base = base.filter(Topic.subject_id == subject_id)
+    if topic_id:
+        base = base.filter(Assessment.topic_id == topic_id)
+    if question_type:
+        base = base.filter(Assessment.question_type == question_type.upper())
+    total = base.count()
+    correct = base.filter(Assessment.is_correct.is_(True)).count()
+    incorrect = total - correct
+    visible = base
+    if result == "correct":
+        visible = visible.filter(Assessment.is_correct.is_(True))
+    elif result == "incorrect":
+        visible = visible.filter(Assessment.is_correct.is_(False))
+    attempts = visible.order_by(Assessment.created_at.desc(), Assessment.id.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+    items = []
+    for a in attempts:
+        key = _find_review_key(db, a)
+        topic = a.topic
+        items.append(AssessmentHistoryItem(
+            id=a.id, topic_id=a.topic_id, topic_name=topic.name,
+            subject_id=topic.subject_id, subject_name=topic.subject.name,
+            question_text=a.question_text, question_type=a.question_type,
+            difficulty=a.difficulty,
+            options=_parse_options(key.options_json if key else a.options_json),
+            student_answer=a.student_answer, is_correct=a.is_correct,
+            score=a.score, feedback=a.feedback,
+            identified_misconception=a.identified_misconception,
+            reference_answer=key.reference_answer if key else None,
+            correct_option=key.correct_option if key else None,
+            source_quote=key.source_quote if key else None,
+            hint=key.hint if key else None,
+            retry_available=not a.is_correct and key is not None,
+            created_at=a.created_at,
+        ))
+    return AssessmentHistoryPage(items=items, page=page, page_size=page_size,
+                                 total=total, correct=correct, incorrect=incorrect)
+
+
+@router.post("/history/{assessment_id}/retry", response_model=GeneratedQuestionResponse)
+def retry_incorrect_question(
+    assessment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([UserRole.STUDENT])),
+):
+    """Create a new attempt using the original answer key. Never modify history."""
+    a = db.query(Assessment).filter(
+        Assessment.id == assessment_id, Assessment.student_id == current_user.id,
+    ).first()
+    if a is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    if a.is_correct:
+        raise HTTPException(status_code=400, detail="Only incorrect questions can be retried")
+    key = _find_review_key(db, a)
+    if key is None:
+        raise HTTPException(status_code=409, detail="Answer key for this older attempt is unavailable")
+    q = GeneratedQuestion(
+        student_id=current_user.id, topic_id=a.topic_id,
+        question_text=a.question_text, question_type=a.question_type,
+        difficulty=a.difficulty, options_json=key.options_json,
+        correct_option=key.correct_option, reference_answer=key.reference_answer,
+        source_quote=key.source_quote or "", hint=key.hint,
+    )
+    db.add(q)
+    db.commit()
+    db.refresh(q)
+    return GeneratedQuestionResponse(
+        question_id=q.id, topic_id=a.topic_id, topic_name=a.topic.name,
+        question_text=q.question_text, question_type=q.question_type,
+        difficulty=q.difficulty, options=_parse_options(q.options_json), hint=q.hint,
     )

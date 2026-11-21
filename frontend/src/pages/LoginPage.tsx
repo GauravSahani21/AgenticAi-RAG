@@ -29,7 +29,7 @@ const PRESET_ROLES: RoleOption[] = [
   {
     id: 'STUDENT',
     label: 'Student',
-    sublabel: 'Jane Student',
+    sublabel: 'Student',
     email: 'student@adaptivelearn.edu',
     password: 'Password123!',
     icon: UserCheck,
@@ -107,7 +107,7 @@ export const LoginPage: React.FC = () => {
           <div className="mb-5">
             <h2 className="text-base font-semibold text-zinc-900">Sign in to your account</h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Select a role below or enter your institutional credentials
+              Select a demo account below or sign in with your email address
             </p>
           </div>
 
@@ -157,7 +157,7 @@ export const LoginPage: React.FC = () => {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-xs font-medium text-zinc-700 mb-1.5">
-                Institutional Email
+                Email Address
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
@@ -169,7 +169,7 @@ export const LoginPage: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  placeholder="name@adaptivelearn.edu"
+                  placeholder="name@gmail.com"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);

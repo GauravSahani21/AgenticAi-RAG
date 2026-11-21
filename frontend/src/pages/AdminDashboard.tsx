@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { dashboardService } from '../services/api';
-import type { AdminOverview, User } from '../types';
+import type { AdminOverview, User, UserRole } from '../types';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
+import { Button } from '../components/Button';
 import { 
   ShieldCheck, 
   Users, 
   GraduationCap, 
   Briefcase, 
   Activity, 
-  CheckCircle2
+  CheckCircle2,
+  Trash2, PlusCircle
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -17,6 +19,22 @@ export const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [savingUser, setSavingUser] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [newUser, setNewUser] = useState<{name: string; email: string; password: string; role: UserRole; department: string}>({
+    name: '', email: '', password: '', role: 'FACULTY', department: '',
+  });
+
+  const refreshData = async () => {
+    const [ovData, usersData] = await Promise.all([
+      dashboardService.getAdminOverview(), dashboardService.getAdminUsers(),
+    ]);
+    setOverview(ovData);
+    setUsers(usersData);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,6 +54,40 @@ export const AdminDashboard: React.FC = () => {
 
     fetchData();
   }, []);
+
+  const handleDeleteUser = async (user: User) => {
+    if (!window.confirm(`Permanently delete ${user.name} (${user.email})? Their learning records will also be removed. Faculty-owned subjects will remain assigned to no one.`)) return;
+    setError(null);
+    setSuccess(null);
+    setDeletingUserId(user.id);
+    try {
+      await dashboardService.deleteAdminUser(user.id);
+      await refreshData();
+      setSuccess(`Deleted ${user.email} successfully.`);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to delete user.');
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setSavingUser(true);
+    try {
+      await dashboardService.createAdminUser({ ...newUser, department: newUser.department || undefined });
+      await refreshData();
+      setNewUser({ name: '', email: '', password: '', role: 'FACULTY', department: '' });
+      setShowCreateUser(false);
+      setSuccess('User created successfully.');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to create user.');
+    } finally {
+      setSavingUser(false);
+    }
+  };
 
   const filteredUsers = users.filter((u) => {
     if (roleFilter === 'ALL') return true;
@@ -60,7 +112,7 @@ export const AdminDashboard: React.FC = () => {
               System Administration
             </h1>
             <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
-              Institutional Governance
+              System Management
             </span>
           </div>
           <p className="mt-1 text-xs text-zinc-500">
@@ -124,11 +176,43 @@ export const AdminDashboard: React.FC = () => {
         </Card>
       </div>
 
+      {(error || success) && (
+        <div role="alert" className={`rounded-lg p-3 text-sm border ${error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+          {error || success}
+        </div>
+      )}
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Account Provisioning</h2>
+            <p className="text-xs text-slate-500 mt-1">Only administrators can create faculty and administrator accounts.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowCreateUser(!showCreateUser)}>
+            <PlusCircle className="w-4 h-4 mr-1" /> {showCreateUser ? 'Cancel' : 'Create User'}
+          </Button>
+        </div>
+        {showCreateUser && (
+          <form onSubmit={handleCreateUser} className="mt-4 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input required aria-label="Full name" placeholder="Full name" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="border rounded-lg p-2 text-sm" />
+              <input required type="email" aria-label="Email address" placeholder="Email address (e.g. name@gmail.com)" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="border rounded-lg p-2 text-sm" />
+              <input required minLength={6} type="password" aria-label="Temporary password" placeholder="Temporary password (6+ characters)" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="border rounded-lg p-2 text-sm" />
+              <input aria-label="Department" placeholder="Department (optional)" value={newUser.department} onChange={e => setNewUser({...newUser, department: e.target.value})} className="border rounded-lg p-2 text-sm" />
+              <select aria-label="Account role" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})} className="border rounded-lg p-2 text-sm">
+                <option value="STUDENT">Student</option><option value="FACULTY">Faculty</option><option value="ADMIN">Administrator</option>
+              </select>
+            </div>
+            <Button type="submit" size="sm" variant="primary" isLoading={savingUser}>Save User</Button>
+          </form>
+        )}
+      </div>
+
       {/* User Management Registry */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Registered Institutional Users</h2>
+            <h2 className="text-lg font-bold text-slate-900">Registered Users</h2>
             <p className="text-xs text-slate-500">
               Complete user audit log with role-based access attributes
             </p>
@@ -160,6 +244,7 @@ export const AdminDashboard: React.FC = () => {
                 <th className="px-6 py-3.5">Department</th>
                 <th className="px-6 py-3.5">Joined At</th>
                 <th className="px-6 py-3.5">User ID</th>
+                <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -184,6 +269,18 @@ export const AdminDashboard: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 font-mono text-[11px] text-slate-400">
                     {u.id.substring(0, 8)}...
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button
+                      variant="outline" size="sm"
+                      disabled={u.id === overview?.user.id}
+                      isLoading={deletingUserId === u.id}
+                      onClick={() => handleDeleteUser(u)}
+                      title={u.id === overview?.user.id ? 'Cannot delete your own account' : `Delete ${u.name}`}
+                      className="text-rose-700 hover:border-rose-300"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                    </Button>
                   </td>
                 </tr>
               ))}

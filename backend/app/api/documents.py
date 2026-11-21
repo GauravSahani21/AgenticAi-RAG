@@ -8,7 +8,7 @@ from app.database.session import get_db
 from app.models.document import Document
 from app.models.subject import Subject
 from app.models.topic import Topic
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.document import DocumentResponse
 from app.auth.dependencies import get_current_user, require_faculty
 from app.rag.extractors import extract_document_text
@@ -40,6 +40,8 @@ async def upload_document(
     subject = db.query(Subject).filter(Subject.id == subject_id).first()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
+    if current_user.role != UserRole.ADMIN and subject.faculty_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can upload materials only to subjects assigned to you")
 
     topic = None
     module_name = "General"
@@ -51,11 +53,9 @@ async def upload_document(
         topic = db.query(Topic).filter(Topic.id == clean_topic_id).first()
         if not topic:
             raise HTTPException(status_code=404, detail=f"Topic '{clean_topic_id}' not found")
-        # Ensure subject alignment for newly added topics
+        # Never reassign an existing topic merely because it was submitted in a form.
         if topic.subject_id != subject_id:
-            topic.subject_id = subject_id
-            db.commit()
-            db.refresh(topic)
+            raise HTTPException(status_code=400, detail="Selected topic does not belong to the subject")
         module_name = topic.module or "General"
 
     # 3. Read and validate file content & size

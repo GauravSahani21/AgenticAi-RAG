@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { dashboardService, curriculumService, assessmentService, documentService } from '../services/api';
-import type { StudentOverview, Subject, Topic, LearningState, DocumentItem } from '../types';
+import type { StudentOverview, Subject, Topic, LearningState, DocumentItem, GeneratedQuestion } from '../types';
 import { LearningSculpture } from '../components/LearningSculpture';
 import { filterTopics, recommendTopic, type TopicFilter } from '../utils/studyPlan';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { TutorChat } from '../components/TutorChat';
 import { AssessmentModal } from '../components/AssessmentModal';
+import { QuestionHistory } from '../components/QuestionHistory';
 import { DocumentViewerModal } from '../components/DocumentViewerModal';
 import { Button } from '../components/Button';
 import { 
@@ -25,7 +26,8 @@ import {
   CheckCircle2,
   HelpCircle,
   TrendingUp,
-  Info
+  Info,
+  History
 } from 'lucide-react';
 
 export const StudentDashboard: React.FC = () => {
@@ -37,7 +39,9 @@ export const StudentDashboard: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [docsLoading, setDocsLoading] = useState<boolean>(false);
   const [viewingDocument, setViewingDocument] = useState<DocumentItem | null>(null);
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'materials' | 'tutor'>('curriculum');
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'materials' | 'tutor' | 'history'>('curriculum');
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const [retryQuestion, setRetryQuestion] = useState<GeneratedQuestion | null>(null);
   const [activeTopicForTutor, setActiveTopicForTutor] = useState<string | undefined>(undefined);
   const [assessmentTopic, setAssessmentTopic] = useState<Topic | null>(null);
   const [loading, setLoading] = useState(true);
@@ -292,7 +296,7 @@ export const StudentDashboard: React.FC = () => {
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-zinc-200">
+      <div className="flex items-center gap-2 border-b border-zinc-200 overflow-x-auto">
         <button
           aria-pressed={activeTab === 'curriculum'}
           onClick={() => { setActiveTab('curriculum'); void fetchStates(); }}
@@ -328,6 +332,18 @@ export const StudentDashboard: React.FC = () => {
         >
           <MessageSquare className="w-3.5 h-3.5" />
           Interactive Tutor
+        </button>
+        <button
+          aria-pressed={activeTab === 'history'}
+          onClick={() => setActiveTab('history')}
+          className={`flex shrink-0 items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors -mb-px ${
+            activeTab === 'history'
+              ? 'border-zinc-900 text-zinc-900'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
+          }`}
+        >
+          <History className="w-3.5 h-3.5" />
+          My Question History
         </button>
       </div>
 
@@ -769,17 +785,34 @@ export const StudentDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Attempt history, filtered independently of the selected curriculum course. */}
+      {activeTab === 'history' && (
+        <QuestionHistory
+          subjects={subjects}
+          refreshVersion={historyVersion}
+          onRetry={(q) => {
+            const matched = subjects.flatMap(s => s.topics ?? []).find(t => t.id === q.topic_id);
+            if (!matched) return;
+            setRetryQuestion(q);
+            setAssessmentTopic(matched);
+          }}
+        />
+      )}
+
       {/* Assessment Modal */}
       {assessmentTopic && (
         <AssessmentModal
           topic={assessmentTopic}
           isOpen={!!assessmentTopic}
+          initialQuestion={retryQuestion}
           onClose={() => {
             setAssessmentTopic(null);
+            setRetryQuestion(null);
             void fetchStates();
             void dashboardService.getStudentOverview().then(ov => { if (ov) setOverview(ov); });
           }}
           onAssessmentCompleted={async () => {
+            setHistoryVersion(v => v + 1);
             try {
               const [_, ov] = await Promise.all([
                 fetchStates(),
