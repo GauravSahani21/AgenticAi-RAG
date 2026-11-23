@@ -357,7 +357,6 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                       variant="outline"
                       size="sm"
                       disabled={loading || evaluating}
-                      disabled={loading || evaluating}
                       onClick={() => fetchQuestion()}
                     >
                       Practice Next Question
