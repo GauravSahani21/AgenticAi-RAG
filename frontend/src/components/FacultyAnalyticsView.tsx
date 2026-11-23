@@ -42,9 +42,20 @@ export const FacultyAnalyticsView: React.FC = () => {
         facultyAnalyticsService.getInterventions(),
       ]);
       setOverview(ovData);
-      setTopics(topicsData);
-      setStudents(studentsData);
-      setInterventions(interventionsData);
+      setTopics(Array.isArray(topicsData) ? topicsData : []);
+      // Older API records may omit these lists. Default them to empty arrays
+      // so Student Cohort and Student Strengths never crash while rendering.
+      setStudents(
+        Array.isArray(studentsData)
+          ? studentsData.map((student) => ({
+              ...student,
+              strong_topics: Array.isArray(student.strong_topics) ? student.strong_topics : [],
+              support_topics: Array.isArray(student.support_topics) ? student.support_topics : [],
+              misconceptions: Array.isArray(student.misconceptions) ? student.misconceptions : [],
+            }))
+          : []
+      );
+      setInterventions(Array.isArray(interventionsData) ? interventionsData : []);
     } catch (err) {
       console.error('Failed to load analytics:', err);
     } finally {
@@ -316,11 +327,11 @@ export const FacultyAnalyticsView: React.FC = () => {
                 <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                   <TrendingDown className="w-4 h-4 text-rose-500" /> Topics Requiring Attention
                 </h3>
-                {overview.topics_requiring_attention.length === 0 ? (
+                {(overview.topics_requiring_attention ?? []).length === 0 ? (
                   <p className="text-xs text-slate-500">All curriculum topics exhibit satisfactory comprehension.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {overview.topics_requiring_attention.map((t) => (
+                    {(overview.topics_requiring_attention ?? []).map((t) => (
                       <div key={t.topic_id} className="p-3 rounded-lg border border-rose-100 bg-rose-50/40 text-xs space-y-1">
                         <span className="font-bold text-slate-900 block">{t.topic_name}</span>
                         <div className="flex justify-between text-slate-600">
