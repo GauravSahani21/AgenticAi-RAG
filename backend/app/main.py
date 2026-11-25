@@ -1,10 +1,14 @@
+
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.config import settings
 from app.database.session import engine, SessionLocal
 from app.database.base import Base
+
 from app.models.user import User, UserRole
 from app.models.subject import Subject
 from app.models.topic import Topic
@@ -12,17 +16,34 @@ from app.models.document import Document
 from app.models.session import LearningSession
 from app.models.interaction import Interaction
 from app.models.generated_question import GeneratedQuestion
-from app.models.assessment_review import AssessmentReview  # register review snapshots for create_all
+from app.models.assessment_review import AssessmentReview
+
 from app.auth.security import get_password_hash
-from app.api import auth, subjects, topics, dashboard, documents, rag, tutor, assessment, faculty_analytics
+
+from app.api import (
+    auth,
+    subjects,
+    topics,
+    dashboard,
+    documents,
+    rag,
+    tutor,
+    assessment,
+    faculty_analytics,
+)
 
 logging.basicConfig(level=logging.INFO)
 
-
 logger = logging.getLogger(__name__)
+
+
+# --------------------------------------------------
+# SEED INITIAL DEMO DATA
+# --------------------------------------------------
 
 def seed_initial_data():
     db = SessionLocal()
+
     try:
         demo_users = [
             {
@@ -30,63 +51,124 @@ def seed_initial_data():
                 "email": "faculty@adaptivelearn.edu",
                 "password": "Password123!",
                 "role": UserRole.FACULTY,
-                "department": "Computer Science & AI"
+                "department": "Computer Science & AI",
             },
             {
                 "name": "Jane Student",
                 "email": "student@adaptivelearn.edu",
                 "password": "Password123!",
                 "role": UserRole.STUDENT,
-                "department": "Computer Science"
+                "department": "Computer Science",
             },
             {
                 "name": "System Administrator",
                 "email": "admin@adaptivelearn.edu",
                 "password": "Password123!",
                 "role": UserRole.ADMIN,
-                "department": "IT Administration"
-            }
+                "department": "IT Administration",
+            },
         ]
 
         faculty_user = None
+
         for u in demo_users:
-            existing = db.query(User).filter(User.email == u["email"]).first()
+            existing = (
+                db.query(User)
+                .filter(User.email == u["email"])
+                .first()
+            )
+
             if not existing:
                 created = User(
                     name=u["name"],
                     email=u["email"],
                     password_hash=get_password_hash(u["password"]),
                     role=u["role"],
-                    department=u["department"]
+                    department=u["department"],
                 )
+
                 db.add(created)
                 db.commit()
                 db.refresh(created)
+
                 if u["role"] == UserRole.FACULTY:
                     faculty_user = created
+
             elif u["role"] == UserRole.FACULTY:
                 faculty_user = existing
 
-        genai_subject = db.query(Subject).filter(Subject.code == "CS-GENAI").first()
+        # ------------------------------------------
+        # GENERATIVE AI SUBJECT
+        # ------------------------------------------
+
+        genai_subject = (
+            db.query(Subject)
+            .filter(Subject.code == "CS-GENAI")
+            .first()
+        )
+
         if not genai_subject:
             genai_subject = Subject(
                 name="Generative AI",
                 code="CS-GENAI",
-                faculty_id=faculty_user.id if faculty_user else None
+                faculty_id=(
+                    faculty_user.id if faculty_user else None
+                ),
             )
+
             db.add(genai_subject)
             db.commit()
             db.refresh(genai_subject)
 
             topics_data = [
-                ("Module 1", "Introduction to Generative AI", "Fundamental definitions, history, and core taxonomy of generative models.", "BEGINNER"),
-                ("Module 1", "LLM Fundamentals", "Architecture of Large Language Models, tokenization, and causal language modeling.", "BEGINNER"),
-                ("Module 2", "Transformers", "Self-attention mechanism, multi-head attention, and transformer encoders/decoders.", "INTERMEDIATE"),
-                ("Module 2", "Embeddings", "Dense vector representations of semantic meaning and cosine similarity metrics.", "INTERMEDIATE"),
-                ("Module 3", "Chunking", "Strategies for document chunking, overlap, semantic boundary detection.", "INTERMEDIATE"),
-                ("Module 3", "Vector Databases", "Indexing structures (HNSW, IVFFlat), similarity search, ChromaDB fundamentals.", "INTERMEDIATE"),
-                ("Module 4", "RAG", "Retrieval-Augmented Generation pipeline, query augmentation, and grounded synthesis.", "ADVANCED"),
-                ("Module 4", "Agentic RAG", "Adaptive retrieval, self-reflective reasoning, planning, and multi-step tool execution.", "ADVANCED"),
+                (
+                    "Module 1",
+                    "Introduction to Generative AI",
+                    "Fundamental definitions, history, and core taxonomy of generative models.",
+                    "BEGINNER",
+                ),
+                (
+                    "Module 1",
+                    "LLM Fundamentals",
+                    "Architecture of Large Language Models, tokenization, and causal language modeling.",
+                    "BEGINNER",
+                ),
+                (
+                    "Module 2",
+                    "Transformers",
+                    "Self-attention mechanism, multi-head attention, and transformer encoders/decoders.",
+                    "INTERMEDIATE",
+                ),
+                (
+                    "Module 2",
+                    "Embeddings",
+                    "Dense vector representations of semantic meaning and cosine similarity metrics.",
+                    "INTERMEDIATE",
+                ),
+                (
+                    "Module 3",
+                    "Chunking",
+                    "Strategies for document chunking, overlap, semantic boundary detection.",
+                    "INTERMEDIATE",
+                ),
+                (
+                    "Module 3",
+                    "Vector Databases",
+                    "Indexing structures (HNSW, IVFFlat), similarity search, ChromaDB fundamentals.",
+                    "INTERMEDIATE",
+                ),
+                (
+                    "Module 4",
+                    "RAG",
+                    "Retrieval-Augmented Generation pipeline, query augmentation, and grounded synthesis.",
+                    "ADVANCED",
+                ),
+                (
+                    "Module 4",
+                    "Agentic RAG",
+                    "Adaptive retrieval, self-reflective reasoning, planning, and multi-step tool execution.",
+                    "ADVANCED",
+                ),
             ]
 
             for module, name, desc, diff in topics_data:
@@ -95,57 +177,114 @@ def seed_initial_data():
                     module=module,
                     name=name,
                     description=desc,
-                    difficulty=diff
+                    difficulty=diff,
                 )
+
                 db.add(topic)
+
             db.commit()
-            logger.info("Successfully seeded Generative AI subject and 8 topics.")
+
+            logger.info(
+                "Successfully seeded Generative AI subject and 8 topics."
+            )
 
     except Exception as e:
-        logger.error(f"Error seeding initial data: {e}")
+        logger.error("Error seeding initial data: %s", e)
         db.rollback()
+
     finally:
         db.close()
 
+
+# --------------------------------------------------
+# APPLICATION LIFESPAN
+# --------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     logger.info("Initializing database tables...")
+
     Base.metadata.create_all(bind=engine)
-    # Seed only on a genuinely empty local development database. Deleted subjects,
-    # documents and users must never be recreated on subsequent restarts.
-    if settings.SEED_DEMO_DATA and settings.ENVIRONMENT == "development":
+
+    # Seed only on a genuinely empty local
+    # development database.
+    #
+    # Existing users, subjects, and documents
+    # should not be recreated after deletion.
+
+    if (
+        settings.SEED_DEMO_DATA
+        and settings.ENVIRONMENT == "development"
+    ):
         db = SessionLocal()
+
         try:
             needs_seed = db.query(User).count() == 0
+
         finally:
             db.close()
+
         if needs_seed:
             seed_initial_data()
+
             try:
-                from app.seed_sample_materials import seed_sample_course_content
+                from app.seed_sample_materials import (
+                    seed_sample_course_content,
+                )
+
                 seed_sample_course_content()
+
             except Exception as se:
-                logger.warning("Could not seed initial sample materials: %s", se)
+                logger.warning(
+                    "Could not seed initial sample materials: %s",
+                    se,
+                )
+
     yield
 
+
+# --------------------------------------------------
+# FASTAPI APPLICATION
+# --------------------------------------------------
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="AdaptiveLearn AI - Agentic RAG-Based Adaptive Learning Platform",
-    lifespan=lifespan
+    description=(
+        "AdaptiveLearn AI - Agentic RAG-Based "
+        "Adaptive Learning Platform"
+    ),
+    lifespan=lifespan,
 )
 
-# CORS Middleware
+
+# --------------------------------------------------
+# CORS CONFIGURATION
+# --------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:5176",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API Routers
+
+# --------------------------------------------------
+# API ROUTERS
+# --------------------------------------------------
+
 app.include_router(auth.router)
 app.include_router(subjects.router)
 app.include_router(topics.router)
@@ -156,6 +295,11 @@ app.include_router(tutor.router)
 app.include_router(assessment.router)
 app.include_router(faculty_analytics.router)
 
+
+# --------------------------------------------------
+# ROOT ENDPOINT
+# --------------------------------------------------
+
 @app.get("/")
 def root():
     return {
@@ -163,12 +307,18 @@ def root():
         "version": settings.VERSION,
         "status": "operational",
         "phase": 6,
-        "documentation": "/docs"
+        "documentation": "/docs",
     }
 
 
+# --------------------------------------------------
+# HEALTH CHECK
+# --------------------------------------------------
 
 @app.get("/health")
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": "AdaptiveLearn AI Backend"}
+    return {
+        "status": "healthy",
+        "service": "AdaptiveLearn AI Backend",
+    }
