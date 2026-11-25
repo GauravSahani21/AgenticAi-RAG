@@ -33,6 +33,10 @@ services:
       JWT_SECRET: adaptivelearn-dev-secret-super-secure-key-2026
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemini-2.0-flash-001}
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: 8000
     ports:
